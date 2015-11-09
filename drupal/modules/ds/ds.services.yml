@@ -1,0 +1,11 @@
+services:
+  plugin.manager.ds:
+    class: Drupal\ds\Plugin\DsPluginManager
+    parent: default_plugin_manager
+  plugin.manager.ds.field.layout:
+    class: Drupal\ds\Plugin\DsFieldTemplatePluginManager
+    parent: default_plugin_manager
+  access_check.ds.contextual_tab:
+    class: Drupal\ds\Access\ContextualTabAccessCheck
+    tags:
+      - { name: access_check, applies_to: _access_ds_contextual_tab }

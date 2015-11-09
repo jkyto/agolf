@@ -1,0 +1,677 @@
+<?php
+
+/**
+ * @file
+ * Display Suite core functions.
+ */
+
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Entity\Display\EntityDisplayInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Field\FieldConfigInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Field\FormatterInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
+use Drupal\Core\Url;
+use Drupal\ds\Ds;
+use Drupal\ds\Plugin\DsFieldTemplate\DsFieldTemplateInterface;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\layout_plugin\Layout;
+
+/**
+ * Implements hook_theme().
+ */
+function ds_theme() {
+  module_load_include('inc', 'ds', 'includes/registry');
+  return _ds_theme();
+}
+
+/**
+ * Implements hook_ds_layout_info().
+ */
+function ds_ds_layout_info() {
+  module_load_include('inc', 'ds', 'includes/registry');
+  return _ds_ds_layout_info();
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ */
+function ds_theme_registry_alter(&$theme_registry) {
+  module_load_include('inc', 'ds', 'includes/registry');
+  _ds_theme_registry_alter($theme_registry);
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function ds_form_entity_view_display_edit_form_alter(&$form, FormStateInterface $form_state) {
+  $form_state->loadInclude('ds', 'inc', 'includes/field_ui');
+  // Also load admin on behalf of DS extras when enabled.
+  if (\Drupal::moduleHandler()->moduleExists('ds_extras')) {
+    $form_state->loadInclude('ds_extras', 'inc', 'includes/admin');
+  }
+  ds_field_ui_fields_layouts($form, $form_state);
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function ds_module_implements_alter(&$implementations, $hook) {
+  \Drupal::moduleHandler()->loadInclude('ds', 'inc', 'includes/registry');
+  _ds_module_implements_alter($implementations, $hook);
+}
+
+/**
+ * Implements hook_entity_view_alter().
+ */
+function ds_entity_view_alter(&$build, EntityInterface $entity, EntityDisplayInterface $display) {
+  static $field_permissions = FALSE;
+  static $loaded = FALSE;
+
+  $entity_type = $entity->getEntityTypeId();
+  $bundle = $entity->bundle();
+  $view_mode = $display->getMode();
+
+  // Add extra metadata needed for contextual links
+  if (isset($build['#contextual_links'][$entity_type])) {
+    $build['#contextual_links'][$entity_type]['metadata']['ds_bundle'] = $bundle;
+    $build['#contextual_links'][$entity_type]['metadata']['ds_view_mode'] = $view_mode;
+  }
+
+  // If no layout is configured, stop executing.
+  if (!$display->getThirdPartySetting('ds', 'layout')) {
+    return;
+  }
+
+  // If Display Suite is disabled, stop here.
+  if (Ds::isDisabled()) {
+    return;
+  }
+
+  // Load field permissions and layouts only once.
+  if (!$loaded) {
+    $loaded = TRUE;
+    $field_permissions = \Drupal::config('ds.extras')->get('field_permissions');
+  }
+
+  // Get configuration.
+  $configuration = $display->getThirdPartySettings('ds');
+
+  // Put #entity_type, #bundle and #layout on the build so we can
+  // access it in ds_entity_variables().
+  $build['#entity_type'] = $entity_type;
+  $build['#bundle'] = $bundle;
+  $build['#ds_configuration'] = $configuration;
+
+  // Implement UI limit
+  $components = $display->getComponents();
+  foreach ($components as $field => $component) {
+    if (isset($component['third_party_settings']['ds']) && !empty($component['third_party_settings']['ds']['ds_limit'])) {
+      $limit = $component['third_party_settings']['ds']['ds_limit'];
+      if (isset($build[$field]) && isset($build[$field]['#items'])) {
+        if ($limit === 'delta' && isset($entity->ds_delta) && isset($entity->ds_delta[$field])) {
+          $delta = $entity->ds_delta[$field];
+          $filtered_elements = Element::children($build['field']);
+          foreach ($filtered_elements as $filtered_element) {
+            if ($filtered_element != $delta) {
+              unset($build[$field][$filtered_element]);
+            }
+          }
+        }
+        else {
+          $filtered_elements = Element::children($build[$field]);
+          $filtered_elements = array_slice($filtered_elements, $limit);
+          foreach ($filtered_elements as $filtered_element) {
+            unset($build[$field][$filtered_element]);
+          }
+        }
+      }
+    }
+  }
+
+  // Add Display Suite fields.
+  $fields = Ds::getFields($entity_type);
+  $field_values = !empty($configuration['fields']) ? $configuration['fields'] : array();
+
+  foreach ($field_values as $key => $field) {
+
+    // Ignore if this field is not a DS field.
+    if (!isset($fields[$key])) {
+      continue;
+    }
+
+    $field = $fields[$key];
+    if (isset($field_values[$key]['formatter'])) {
+      $field['formatter'] = $field_values[$key]['formatter'];
+    }
+
+    if (isset($field_values[$key]['settings'])) {
+      $field['settings'] = $field_values[$key]['settings'];
+    }
+
+    $field_value = Ds::getFieldValue($key, $field, $entity, $view_mode, $display, $build);
+
+    // Only allow non empty fields
+    if (!empty($field_value)) {
+      $build[$key] = array(
+        '#theme' => 'field',
+        '#field_type' => 'ds',
+        '#title' => $field['title'],
+        '#weight' => isset($field_values[$key]['weight']) ? $field_values[$key]['weight'] : 0,
+        '#label_display' => isset($field_values[$key]['label']) ? $field_values[$key]['label'] : 'inline',
+        '#field_name' => $key,
+        '#bundle' => $bundle,
+        '#object' => $entity,
+        '#entity_type' => $entity_type,
+        '#view_mode' => '_custom',
+        '#ds_view_mode' => $view_mode,
+        '#items' => array((object) array('_attributes' => array())),
+        '#is_multiple' => FALSE,
+        '#access' => ($field_permissions && function_exists('ds_extras_ds_field_access')) ? ds_extras_ds_field_access($key, $entity_type) : TRUE,
+        0 => array(
+          $field_value,
+        ),
+      );
+    }
+  }
+
+  // Render the layout.
+  $layout = Layout::layoutPluginManager()->createInstance($configuration['layout']['id'], array());
+  $build = $layout->build($build);
+
+  // Disable CSS files when needed
+  if ($build['#ds_configuration']['layout']['disable_css']) {
+    $library = $build['#ds_configuration']['layout']['library'];
+    $attached = $build['#attached']['library'];
+
+    $index = array_search($library, $attached);
+    unset($build['#attached']['library'][$index]);
+  }
+}
+
+/**
+ * Process layout.
+ *
+ * This function is added in ds_theme_registry_alter().
+ */
+function ds_preprocess_ds_layout(&$variables) {
+  if (isset($variables['content']['#entity_type'])) {
+    // Fetch the object
+    $object = $variables['content']['#entity_type'];
+
+    if (isset($variables['content']['#ds_configuration'])) {
+      $configuration = $variables['content']['#ds_configuration'];
+      $render_container = 'content';
+
+      // Template layout.
+      if (!isset($variables['attributes']['class'])) {
+        $variables['attributes']['class'] = array();
+      }
+
+      // Add view-mode-{name} to classes.
+      if (!in_array('view-mode-' . $variables['content']['#view_mode'], $variables['attributes']['class'])) {
+        $variables['attributes']['class'][] = 'view-mode-' . $variables['content']['#view_mode'];
+      }
+
+      // If the layout has wrapper class lets add it.
+      if (isset($configuration['layout']['settings']['classes']['layout_class'])) {
+        foreach ($configuration['layout']['settings']['classes']['layout_class'] as $layout_class) {
+          $variables['attributes']['class'][] = $layout_class;
+        }
+      }
+
+      // Create region variables based on the layout settings.
+      foreach ($configuration['layout']['settings']['wrappers'] as $region_name => $wrapper) {
+
+        $layout_render_array[$region_name] = array();
+
+        // Create the region content.
+        if (!empty($configuration['regions'][$region_name])) {
+          foreach ($configuration['regions'][$region_name] as $key => $field) {
+            // Make sure the field exists.
+            if (!isset($variables[$render_container][$field])) {
+              continue;
+            }
+            if (!isset($variables[$render_container][$field]['#weight'])) {
+              $variables[$render_container][$field]['#weight'] = $key;
+            }
+            $layout_render_array[$region_name][$key] = $variables[$render_container][$field];
+          }
+        }
+
+        $variables[$region_name . '_classes'] = !empty($configuration['layout']['settings']['classes'][$region_name]) ? ' ' . implode(' ', $configuration['layout']['settings']['classes'][$region_name]) : '';
+        $variables[$region_name . '_wrapper'] = !empty($configuration['layout']['settings']['wrappers'][$region_name]) ? $configuration['layout']['settings']['wrappers'][$region_name] : 'div';
+      }
+
+      // Let other modules know we have rendered.
+      $variables['rendered_by_ds'] = TRUE;
+
+      // Add a layout wrapper.
+      $variables['outer_wrapper'] = isset($configuration['layout']['settings']['outer_wrapper']) ? $configuration['layout']['settings']['outer_wrapper'] : 'div';
+
+      // Add custom attributes if any.
+      if (!empty($configuration['layout']['settings']['attributes'])) {
+        $layout_attributes = explode(',', $configuration['layout']['settings']['attributes']);
+        foreach ($layout_attributes as $layout_attribute) {
+          $replaced_attribute = $layout_attribute;
+          if (strpos($layout_attribute, '|') !== FALSE) {
+            if (isset($object)) {
+              $replaced_attribute = \Drupal::service('token')->replace(
+                $layout_attribute,
+                array($variables['content']['#entity_type'] => $variables['content']['#' . $object]),
+                array('clear' => TRUE)
+              );
+            }
+            list($key, $attribute_value) = explode('|', $replaced_attribute);
+            $variables['attributes'][$key] = $attribute_value;
+          }
+        }
+      }
+
+      // Add an onclick attribute on the wrapper.
+      if (!empty($configuration['layout']['settings']['link_attribute'])) {
+        $url = '';
+        switch ($configuration['layout']['settings']['link_attribute']) {
+          case 'content':
+            $url = $variables['content']['#' . $object]->urlInfo()->getInternalPath();
+            break;
+          case 'custom':
+            $url = $configuration['layout']['settings']['link_custom'];
+            break;
+          case 'tokens':
+            $url = \Drupal::service('token')->replace($configuration['layout']['settings']['link_custom'], array($variables['content']['#entity_type'] => $variables['content']['#' . $object]), array('clear' => TRUE));
+            break;
+        }
+
+        if (!empty($url)) {
+          $url = Url::fromUri('internal:/' . $url);
+          $variables['attributes']['onclick'] = 'location.href=\'' . $url->toString() . '\'';
+
+        }
+      }
+
+      // Let other modules alter the ds array before creating the region variables.
+      $context = array('entity' => isset($variables[$object]) ? $variables[$object] : (isset($variables['content']['#' . $object]) ? $variables['content']['#' . $object] : ''), 'entity_type' => $variables['content']['#entity_type'], 'bundle' => $variables['content']['#bundle'], 'view_mode' => $variables['content']['#view_mode']);
+      \Drupal::moduleHandler()->alter('ds_pre_render', $layout_render_array, $context, $variables);
+      foreach ($layout_render_array as $region_name => $content) {
+        $variables[$region_name] = drupal_render($content);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_theme_suggestions_alter()
+ */
+function ds_theme_suggestions_alter(&$suggestions, $variables, $base_theme_hook) {
+  if (isset($variables['content']) && is_array($variables['content']) && isset($variables['content']['#ds_configuration'])) {
+    $layout_id = $variables['content']['#ds_configuration']['layout']['id'];
+    $suggestions[] = $layout_id . '__' . $variables['content']['#entity_type'];
+    $suggestions[] = $layout_id . '__' . $variables['content']['#entity_type'] . '_' . $variables['content']['#view_mode'];
+    $suggestions[] = $layout_id . '__' . $variables['content']['#entity_type'] . '_' . $variables['content']['#bundle'];
+    $suggestions[] = $layout_id . '__' . $variables['content']['#entity_type'] . '_' . $variables['content']['#bundle'] . '_' . $variables['content']['#view_mode'];
+  }
+}
+
+/**
+ * Implements hook_contextual_links_view_alter().
+ */
+function ds_contextual_links_view_alter(&$element, $items) {
+  $def = \Drupal::service('entity.manager')->getDefinitions();
+  $entity_type = array_keys($element['#contextual_links'])[0];
+
+  if (isset($def[$entity_type]) && $def[$entity_type]->get('field_ui_base_route')) {
+    if (!empty($entity_type) && \Drupal::moduleHandler()->moduleExists('field_ui') && \Drupal::currentUser()->hasPermission('administer node display')) {
+      $bundle = $element['#contextual_links'][$entity_type]['metadata']['ds_bundle'];
+      $view_mode = $element['#contextual_links'][$entity_type]['metadata']['ds_view_mode'];
+
+      $route_name = "entity.entity_view_display.$entity_type.view_mode";
+      $type = $def[$entity_type]->getBundleEntityType();
+      $route_params = array(
+        $type => $bundle,
+        'view_mode_name' => $view_mode,
+      );
+
+      $url = new Url($route_name, $route_params);
+
+      $destination = \Drupal::destination()->getAsArray();
+      $url->setOption('query', $destination);
+
+      // When there is no bundle defined, return
+      if (!empty($bundle)) {
+        $element['#links']['manage-display'] = array(
+          'title' => t('Manage display'),
+          'url' => $url,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_local_tasks_alter()
+ */
+function ds_local_tasks_alter(&$local_tasks) {
+  if (!\Drupal::moduleHandler()->moduleExists('contextual') || !\Drupal::moduleHandler()->moduleExists('field_ui')) {
+    unset($local_tasks['ds.manage_node_display']);
+    unset($local_tasks['ds.manage_user_display']);
+    unset($local_tasks['ds.manage_taxonomy_term_display']);
+  }
+}
+
+/**
+ * Implements hook_preprocess_field().
+ */
+function ds_preprocess_field(&$variables) {
+  $entity_type = $variables['element']['#entity_type'];
+  $bundle = $variables['element']['#bundle'];
+  $view_mode = isset($variables['element']['#ds_view_mode']) ? $variables['element']['#ds_view_mode'] : $variables['element']['#view_mode'];
+
+  /** @var $entity_display EntityDisplayInterface */
+  $entity_display = Ds::getDisplay($entity_type, $bundle, $view_mode);
+  if ($entity_display && $entity_display->getThirdPartySetting('ds', 'layout')) {
+
+    // Get the field name and field instance info - if available.
+    $field_name = $variables['element']['#field_name'];
+
+    $config = array();
+    static $field_settings = array();
+    if (!isset($field_settings[$entity_type][$bundle][$view_mode])) {
+      $f = array();
+
+      // Get third party settings for Core fields.
+      foreach ($entity_display->getComponents() as $key => $info) {
+        if (!empty($info['third_party_settings']['ds']['ft'])) {
+          $f[$key]['ft'] = $info['third_party_settings']['ds']['ft'];
+        }
+      }
+
+      // Get third party settings for Display Suite fields.
+      $ds_fields_third_party_settings = $entity_display->getThirdPartySetting('ds', 'fields');
+      if ($ds_fields_third_party_settings) {
+        $f += $entity_display->getThirdPartySetting('ds', 'fields');
+      }
+
+      $field_settings[$entity_type][$bundle][$view_mode] = $f;
+    }
+
+    // Check if this field has custom output settings.
+    $variables['ds-config'] = array();
+    if (isset($field_settings[$entity_type][$bundle][$view_mode][$field_name]['ft'])) {
+      $config = $field_settings[$entity_type][$bundle][$view_mode][$field_name]['ft'];
+      $variables['ds-config'] = $config;
+
+      // When dealing with a field template we need to massage to values before printing to prevent layout issues.
+      if (isset($config['id']) && $config['id'] != 'default' && !empty($variables['ds-config']['settings'])) {
+        /** @var DsFieldTemplateInterface $layout_instance */
+        $layout_instance = \Drupal::service('plugin.manager.ds.field.layout')->createInstance($config['id']);
+        if (isset($variables['element']['#object'])) {
+          $layout_instance->setEntity($variables['element']['#object']);
+        }
+        $layout_instance->massageRenderValues($variables['ds-config']['settings'], $config['settings']);
+        $layout_instance->sanitizeRenderValues($variables['ds-config']['settings']);
+      }
+    }
+
+    // CSS classes
+    if (isset($config['settings']['classes'])) {
+      foreach ($config['settings']['classes'] as $class_name) {
+        $variables['attributes']['class'][] = $class_name;
+      }
+    }
+
+    // Alter the label if configured.
+    if (!$variables['label_hidden']) {
+      if (!empty($config['settings']['lb'])) {
+        $variables['label'] = t(Html::escape($config['settings']['lb']));
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK_alter() for field templates.
+ */
+function ds_theme_suggestions_field_alter(&$suggestions, $variables) {
+  $entity_type = $variables['element']['#entity_type'];
+  $bundle = $variables['element']['#bundle'];
+  $view_mode = isset($variables['element']['#ds_view_mode']) ? $variables['element']['#ds_view_mode'] : $variables['element']['#view_mode'];
+
+  /** @var $entity_display EntityDisplayInterface */
+  $entity_display = Ds::getDisplay($entity_type, $bundle, $view_mode);
+  if ($entity_display && $entity_display->getThirdPartySetting('ds', 'layout')) {
+
+    // Get the field name and field instance info - if available.
+    $field_name = $variables['element']['#field_name'];
+
+    $field_theme_function = \Drupal::config('ds.settings')->get('ft-default');
+    static $field_settings = array();
+    if (!isset($field_settings[$entity_type][$bundle][$view_mode])) {
+
+      $f = array();
+
+      // Get third party settings for Core fields.
+      foreach ($entity_display->getComponents() as $key => $info) {
+        if (!empty($info['third_party_settings']['ds']['ft'])) {
+          $f[$key]['ft'] = $info['third_party_settings']['ds']['ft'];
+        }
+      }
+
+      // Get third party settings for Display Suite fields.
+      $ds_fields_third_party_settings = $entity_display->getThirdPartySetting('ds', 'fields');
+      if ($ds_fields_third_party_settings) {
+        $f += $entity_display->getThirdPartySetting('ds', 'fields');
+      }
+
+      $field_settings[$entity_type][$bundle][$view_mode] = $f;
+    }
+
+    $field = FieldConfig::loadByName($entity_type, $bundle, $field_name);
+
+    // Check if this field has custom output settings.
+    $config = array();
+    if (isset($field_settings[$entity_type][$bundle][$view_mode][$field_name]['ft'])) {
+      $config = $field_settings[$entity_type][$bundle][$view_mode][$field_name]['ft'];
+    }
+
+    // Initialize suggestion name
+    $suggestion = '';
+
+    // Determine the field template. In case it's something different
+    if (isset($config['id']) && $config['id'] != 'default') {
+      $layout_instance = \Drupal::service('plugin.manager.ds.field.layout')->createInstance($config['id']);
+
+      // Either it uses the function.
+      $suggestions = array();
+      $suggestions[] = 'field__' . $layout_instance->getThemeFunction();
+
+      // Or the template file(s).
+      $suggestion = 'field__' . $config['id'];
+    }
+    // Check if we have a default field template on field level.
+    elseif ($field instanceof FieldConfigInterface && ($theme_function = $field->getThirdPartySetting('ds', 'ds_field_template', '')) && !empty($theme_function)) {
+      // Either it uses the function.
+      $suggestions = array();
+      $suggestions[] = 'field__theme_ds_field_' . $theme_function;
+
+      // Or the template file(s).
+      $suggestion = 'field__' . $theme_function;
+    }
+    elseif (!empty($field_theme_function)) {
+      $suggestions = array();
+      $suggestions[] = 'field__theme_ds_field_' . $field_theme_function;
+
+      // Or the template file(s).
+      $suggestion = 'field__' . $field_theme_function;
+    }
+
+    if (!empty($suggestion)) {
+      $suggestions[] = $suggestion;
+      $suggestions[] = $suggestion . '__' . $field_name;
+      $suggestions[] = $suggestion . '__' . $variables['element']['#bundle'];
+      $suggestions[] = $suggestion . '__' . $field_name . '__' . $variables['element']['#bundle'];
+    }
+  }
+}
+
+/**
+ * Field template settings form
+ */
+function ds_field_template_settings_form(array &$form, FormStateInterface &$form_state, array $context) {
+  $functions = Ds::getFieldLayoutOptions();
+
+  $default_field_function = \Drupal::config('ds.settings')->get('ft-default');
+  if (empty($default_field_function)) {
+    $default_field_function = 'default';
+  }
+
+  // @todo fix me - and rename 'instance' to field :)
+  if (is_array($context['instance'])) {
+    $key = $context['instance']['field_name'];
+  }
+  else {
+    $key = $context['instance']->getName();
+  }
+
+  // Plugin settings.
+  $plugin_settings = $form_state->get('plugin_settings');
+  $field_settings = isset($plugin_settings[$key]['ft']) ? $plugin_settings[$key]['ft'] : array();
+
+  // In case with an ajax refresh we fetch the function from a different place
+  $values = $form_state->getValues();
+  if (isset($values['fields'][$key]['settings_edit_form']['settings']['ft']['id'])) {
+    $field_function = $values['fields'][$key]['settings_edit_form']['settings']['ft']['id'];
+  }
+  elseif (isset($values['fields'][$key]['settings_edit_form']['third_party_settings']['ds']['ft']['id'])) {
+    $field_function = $values['fields'][$key]['settings_edit_form']['third_party_settings']['ds']['ft']['id'];
+  }
+  else {
+    $field_function = isset($field_settings['id']) ? $field_settings['id'] : $default_field_function;
+  }
+
+  if (!isset($functions[$field_function])) {
+    $field_function = $default_field_function;
+  }
+
+  $form['ft'] = array(
+    '#weight' => 20,
+  );
+
+  $form['ft']['id'] = array(
+    '#title' => t('Choose a Field Template'),
+    '#type' => 'select',
+    '#options' => $functions,
+    '#default_value' => $field_function,
+    '#ajax' => array(
+    '#submit' => array('ds_field_ui_display_overview_multistep_submit'),
+      'callback' => 'ds_field_ui_display_overview_multistep_js',
+      'wrapper' => 'field-display-overview-wrapper',
+    ),
+  );
+
+  // Create field layout plugin instance.
+  $config = isset($field_settings['settings']) ? $field_settings['settings'] : array();
+  $field_layout_instance = \Drupal::service('plugin.manager.ds.field.layout')->createInstance($field_function, $config);
+
+  // Alter the form to add specific field layout settings
+  $form['ft']['settings'] = array(
+    '#type' => 'container',
+    '#attributes' => array(
+      'class' => array('ft-settings')
+    ),
+  );
+
+  $field_layout_instance->alterForm($form['ft']['settings']);
+}
+
+/**
+ * Ajax handler for changing conditions on the 'Manage display' screen.
+ */
+function ds_field_ui_display_overview_multistep_js($form, &$form_state) {
+  return $form['fields'];
+}
+
+/**
+ * Form submission handler for changing conditions in field_ui_display_overview_form().
+ */
+function ds_field_ui_display_overview_multistep_submit($form, &$form_state) {
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * Implements hook_field_formatter_third_party_settings_form().
+ */
+function ds_field_formatter_third_party_settings_form(FormatterInterface $plugin, FieldDefinitionInterface $field_definition, $view_mode, $form, FormStateInterface $form_state) {
+  $element = array();
+
+  $field_info = $field_definition->getFieldStorageDefinition();
+  if (!empty($field_info) && $field_info->getCardinality() != 1) {
+    $name = $field_info->getName();
+    $settings = $form_state->get('plugin_settings');
+
+    $element['ds_limit'] = array(
+      '#type' => 'textfield',
+      '#title' => t('UI limit'),
+      '#size' => 2,
+      '#description' => t('Enter a number to limit the number of items or \'delta\' to print a specific delta (usually configured in views or found in entity->ds_delta). Leave empty to display them all. Note that depending on the formatter settings, this option might not always work.'),
+      '#default_value' => !empty($settings[$name]['ds_limit']) ? $settings[$name]['ds_limit'] : '',
+    );
+  }
+
+  if (\Drupal::config('ds.settings')->get('field_template')) {
+    $context = array(
+      'instance' => $field_definition,
+      'formatter' => $plugin,
+    );
+    ds_field_template_settings_form($element, $form_state, $context);
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary_alter().
+ */
+function ds_field_formatter_settings_summary_alter(&$summary, $context) {
+  if (\Drupal::config('ds.settings')->get('field_template')) {
+    // Field template summary.
+    $functions = Ds::getFieldLayoutOptions();
+
+    $default_field_function = \Drupal::config('ds.settings')->get('ft-default');
+    $field = $context['field_definition'];
+
+    if (isset($context['form_state'])) {
+      /** @var $form_state FormStateInterface */
+      $form_state = $context['form_state'];
+      $plugin_settings = $form_state->get('plugin_settings');
+      $field_function = isset($plugin_settings[$field->getName()]['ft']['id']) ? $plugin_settings[$field->getName()]['ft']['id'] : $default_field_function;
+    }
+    else {
+      $plugin_settings = $context['formatter']->getThirdPartySetting('ds', 'ft');
+      $field_function = isset($plugin_settings['id']) ? $plugin_settings['id'] : $default_field_function;
+    }
+
+    if (!isset($functions[$field_function])) {
+      $field_function = $default_field_function;
+    }
+    $summary[] = 'Field template: ' . Html::escape($field_function);
+  }
+}
+
+/**
+ * Implements hook_hook_info().
+ */
+function ds_hook_info() {
+  $hooks['ds_views_row_render_entity'] = array(
+    'group' => 'ds',
+  );
+  $hooks['ds_views_row_render_entity_alter'] = array(
+    'group' => 'ds',
+  );
+  $hooks['ds_views_view_mode_alter'] = array(
+    'group' => 'ds',
+  );
+  return $hooks;
+}

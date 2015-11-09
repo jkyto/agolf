@@ -1,0 +1,40 @@
+ds.display_task:
+  route_name: ds.structure
+  title: Displays
+  base_route: ds.display_task
+  weight: 0
+ds.settings_task:
+  route_name: ds.admin_settings
+  title: Settings
+  parent_id: ds.display_task
+  weight: 10
+ds.emergency_task:
+  route_name: ds.admin_emergency
+  title: Emergency
+  parent_id: ds.display_task
+  weight: 100
+ds.classes_task:
+  route_name: ds.classes
+  title: Classes
+  base_route: ds.display_task
+  weight: 1
+ds.fields_task:
+  route_name: ds.fields_list
+  title: Fields
+  base_route: ds.display_task
+  weight: 2
+entity.node.contextual_tab:
+  route_name: entity.node.contextual_tab
+  base_route: entity.node.canonical
+  title: 'Manage display'
+  weight: 10
+entity.taxonomy_term.contextual_tab:
+  route_name: entity.taxonomy_term.contextual_tab
+  base_route: entity.taxonomy_term.canonical
+  title: 'Manage display'
+  weight: 10
+entity.user.contextual_tab:
+  route_name: entity.user.contextual_tab
+  base_route: entity.user.canonical
+  title: 'Manage display'
+  weight: 10

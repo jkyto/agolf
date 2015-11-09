@@ -1,0 +1,21 @@
+type: module
+name: 'Database Search Defaults'
+description: 'Enable this module for basic default configurations for Search API with Database backend.'
+package: Search
+# core: 8.x
+dependencies:
+  - drupal:comment
+  - drupal:text
+  - drupal:field
+  - drupal:image
+  - drupal:node
+  - search_api:search_api_db
+  - drupal:user
+  - drupal:views
+  - drupal:standard
+
+# Information added by Drupal.org packaging script on 2015-11-03
+version: '8.x-1.0-alpha9+28-dev'
+core: '8.x'
+project: 'search_api'
+datestamp: 1446573547
