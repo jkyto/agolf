@@ -1,0 +1,21 @@
+uuid: 76c2321f-1e1d-4abf-9405-5f2601f53963
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_promo_body
+    - node.type.article
+  module:
+    - text
+id: node.article.field_promo_body
+field_name: field_promo_body
+entity_type: node
+bundle: article
+label: 'Promo body'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: text_long

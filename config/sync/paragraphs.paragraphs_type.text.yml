@@ -1,0 +1,6 @@
+uuid: f11b155f-4e23-4637-9500-b48ac2dbab06
+langcode: en
+status: true
+dependencies: {  }
+id: text
+label: Text

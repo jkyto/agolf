@@ -1,0 +1,32 @@
+uuid: 8b60eaa1-efd1-4e84-a601-1c469d9c5965
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.photo.field_paragraph_photo
+    - field.field.paragraph.photo.field_paragraph_photo_caption
+    - paragraphs.paragraphs_type.photo
+  module:
+    - image
+id: paragraph.photo.default
+targetEntityType: paragraph
+bundle: photo
+mode: default
+content:
+  field_paragraph_photo:
+    weight: 0
+    settings:
+      progress_indicator: throbber
+      preview_image_style: thumbnail
+    third_party_settings: {  }
+    type: image_image
+  field_paragraph_photo_caption:
+    weight: 1
+    settings:
+      rows: 5
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textarea
+hidden:
+  created: true
+  uid: true

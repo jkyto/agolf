@@ -1,0 +1,46 @@
+uuid: 923161ab-3229-49bc-9804-4edbad410828
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.article.field_paragraphs
+    - search_api.server.database
+  module:
+    - node
+id: content
+name: Content
+description: ''
+read_only: false
+options:
+  index_directly: true
+  cron_limit: 50
+  processors:
+    language:
+      processor_id: language
+      weights: {  }
+      settings: {  }
+  fields:
+    search_api_language:
+      type: string
+    'entity:node/field_paragraphs':
+      type: integer
+    'entity:node/body':
+      type: text
+      boost: !!float 2
+    'entity:node/title':
+      type: string
+      boost: !!float 21
+  'additional fields':
+    'entity:node/field_paragraphs:entity': 'entity:node/field_paragraphs:entity'
+    'entity:node/field_paragraphs': 'entity:node/field_paragraphs'
+datasources:
+  - 'entity:node'
+datasource_configs:
+  'entity:node':
+    default: '0'
+    bundles:
+      article: article
+      page: page
+tracker: default
+tracker_config: {  }
+server: database

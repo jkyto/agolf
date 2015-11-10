@@ -1,0 +1,10 @@
+uuid: 36cc67f0-9bb7-4f60-ae57-8736244f95bc
+langcode: en
+status: true
+dependencies: {  }
+id: feedback
+label: 'Website feedback'
+recipients:
+  - jussi.kyto@gmail.com
+reply: ''
+weight: 0

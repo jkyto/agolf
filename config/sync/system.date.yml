@@ -1,0 +1,9 @@
+country:
+  default: FI
+first_day: 0
+timezone:
+  default: Europe/Helsinki
+  user:
+    configurable: false
+    warn: false
+    default: 0

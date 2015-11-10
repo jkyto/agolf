@@ -1,0 +1,24 @@
+uuid: f956e5e2-d241-4127-ad18-24b71d971021
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_embed_code
+    - paragraphs.paragraphs_type.embed
+  module:
+    - text
+id: paragraph.embed.field_embed_code
+field_name: field_embed_code
+entity_type: paragraph
+bundle: embed
+label: 'Embed code'
+description: ''
+required: false
+translatable: false
+default_value:
+  -
+    value: 'iframe here'
+    format: raw
+default_value_callback: ''
+settings: {  }
+field_type: text_long

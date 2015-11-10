@@ -1,0 +1,13 @@
+uuid: 3ed60d3f-cc1d-4c81-b500-ff2f6bb43243
+name: AGolf
+mail: jussi.kyto@gmail.com
+slogan: ''
+page:
+  403: ''
+  404: ''
+  front: /node
+admin_compact_mode: false
+weight_select_max: 100
+langcode: en
+default_langcode: en
+mail_notification: ''
