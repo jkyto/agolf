@@ -1,0 +1,20 @@
+uuid: d2a3f838-a2d2-42fb-955b-91672ab2c707
+langcode: en
+status: true
+dependencies:
+  module:
+    - system
+  theme:
+    - agolf
+id: agolf_messages
+theme: agolf
+region: content
+weight: -3
+provider: null
+plugin: system_messages_block
+settings:
+  id: system_messages_block
+  label: 'Status messages'
+  provider: system
+  label_display: '0'
+visibility: {  }

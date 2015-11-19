@@ -1,0 +1,24 @@
+uuid: dfd1adcc-f8a6-4035-a32e-46bbb55c5466
+langcode: en
+status: true
+dependencies:
+  config:
+    - system.menu.main
+  module:
+    - system
+  theme:
+    - agolf
+id: agolf_main_menu
+theme: agolf
+region: header
+weight: -5
+provider: null
+plugin: 'system_menu_block:main'
+settings:
+  id: 'system_menu_block:main'
+  label: 'Main navigation'
+  provider: system
+  label_display: '0'
+  level: 1
+  depth: 1
+visibility: {  }

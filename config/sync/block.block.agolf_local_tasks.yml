@@ -1,0 +1,20 @@
+uuid: 778d5b19-6223-46ad-8200-f225fc1ac032
+langcode: en
+status: true
+dependencies:
+  theme:
+    - agolf
+id: agolf_local_tasks
+theme: agolf
+region: content
+weight: -4
+provider: null
+plugin: local_tasks_block
+settings:
+  id: local_tasks_block
+  label: Tabs
+  provider: core
+  label_display: '0'
+  primary: true
+  secondary: true
+visibility: {  }

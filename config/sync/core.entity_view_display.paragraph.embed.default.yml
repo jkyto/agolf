@@ -15,13 +15,13 @@ mode: default
 content:
   field_embed_caption:
     weight: 1
-    label: visually_hidden
+    label: hidden
     settings: {  }
     third_party_settings: {  }
     type: basic_string
   field_embed_code:
     weight: 0
-    label: visually_hidden
+    label: hidden
     settings: {  }
     third_party_settings: {  }
     type: text_default

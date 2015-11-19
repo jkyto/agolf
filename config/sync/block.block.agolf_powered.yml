@@ -1,0 +1,20 @@
+uuid: 29250d9a-cf60-46ca-a600-e6da5a1065e3
+langcode: en
+status: true
+dependencies:
+  module:
+    - system
+  theme:
+    - agolf
+id: agolf_powered
+theme: agolf
+region: footer
+weight: -6
+provider: null
+plugin: system_powered_by_block
+settings:
+  id: system_powered_by_block
+  label: 'Powered by Drupal'
+  provider: system
+  label_display: '0'
+visibility: {  }

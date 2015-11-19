@@ -1,0 +1,20 @@
+uuid: 49a888e9-38df-4390-ba09-9b400f5a1101
+langcode: en
+status: true
+dependencies:
+  module:
+    - system
+  theme:
+    - agolf
+id: agolf_content
+theme: agolf
+region: content
+weight: 0
+provider: null
+plugin: system_main_block
+settings:
+  id: system_main_block
+  label: 'Main page content'
+  provider: system
+  label_display: '0'
+visibility: {  }

@@ -1,0 +1,18 @@
+uuid: 88ae3153-f3f2-445f-915c-92bfbf9d39bb
+langcode: en
+status: false
+dependencies:
+  theme:
+    - agolf
+id: agolf_page_title
+theme: agolf
+region: '-1'
+weight: -1
+provider: null
+plugin: page_title_block
+settings:
+  id: page_title_block
+  label: 'Page title'
+  provider: core
+  label_display: '0'
+visibility: {  }

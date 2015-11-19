@@ -1,0 +1,24 @@
+uuid: 33bfdc56-f533-42ba-8d00-a88db34b1da0
+langcode: en
+status: true
+dependencies:
+  config:
+    - system.menu.account
+  module:
+    - system
+  theme:
+    - agolf
+id: agolf_account_menu
+theme: agolf
+region: sidebar_right
+weight: -5
+provider: null
+plugin: 'system_menu_block:account'
+settings:
+  id: 'system_menu_block:account'
+  label: 'User account'
+  provider: system
+  label_display: visible
+  level: 1
+  depth: 1
+visibility: {  }

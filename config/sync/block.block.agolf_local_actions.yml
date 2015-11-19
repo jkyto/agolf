@@ -1,0 +1,18 @@
+uuid: c4b9249a-1180-4adb-b41e-309aa1bd8404
+langcode: en
+status: true
+dependencies:
+  theme:
+    - agolf
+id: agolf_local_actions
+theme: agolf
+region: content
+weight: -5
+provider: null
+plugin: local_actions_block
+settings:
+  id: local_actions_block
+  label: 'Primary admin actions'
+  provider: core
+  label_display: '0'
+visibility: {  }
