@@ -1,0 +1,45 @@
+<div id="page">
+    <header id="header" class="header" role="banner" aria-label="{{ 'Site header'|t}}">
+        {{ page.header }}
+    </header>
+    {% if page.featured_top %}
+        <div class="featured-top">
+            <aside role="complementary">
+                {{ page.featured_top }}
+            </aside>
+        </div>
+    {% endif %}
+
+    {{ page.breadcrumb }}
+
+    <div id="main">
+        {% if page.sidebar_left %}
+            <div id="sidebar-left" class="sidebar">
+                <aside class="section" role="complementary">
+                    {{ page.sidebar_left }}
+                </aside>
+            </div>
+        {% endif %}
+
+        <main id="content" role="main">
+            <section class="section">
+                <a id="main-content" tabindex="-1"></a>
+                {{ page.content }}
+            </section>
+        </main>
+
+        {% if page.sidebar_right %}
+            <div id="sidebar-right" class="sidebar">
+                <aside class="section" role="complementary">
+                    {{ page.sidebar_right }}
+                </aside>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if page.footer %}
+    <footer class="site-footer">
+        {{ page.footer }}
+    </footer>
+    {% endif %}
+</div>

@@ -1,0 +1,15 @@
+name: AGolf
+type: theme
+description: AGolf theme
+core: 8.x
+screenshot: images/agolf-theme-screenshot.png
+engine: twig
+libraries:
+  - agolf/global-styling
+regions:
+  header: Header
+  featured_top: 'Featured top'
+  content: Content
+  sidebar_left: 'Sidebar left'
+  sidebar_right: 'Sidebar right'
+  footer: Footer

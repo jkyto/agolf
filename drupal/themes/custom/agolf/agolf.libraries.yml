@@ -1,0 +1,19 @@
+global-styling:
+  version: VERSION
+  css:
+    base:
+      css/base/main.css: {}
+  js:
+    js/agolf.js: {}
+  dependencies:
+    - core/jquery
+    - core/modernizr
+
+maintenance_page:
+  version: VERSION
+  css:
+    theme:
+      css/maintenance-page.css: {}
+  dependencies:
+    - system/maintenance
+    - agolf/global-styling

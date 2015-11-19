@@ -1,0 +1,36 @@
+#block-agolf-breadcrumbs{
+  ol{
+    @include flexbox;
+    list-style: none;
+    padding: 0;
+
+    li{
+      &:after{
+        content: '/';
+        padding: 0 4px;
+      }
+
+      &:last-child{
+        &:after{
+          content: '';
+          padding: 0;
+        }
+      }
+    }
+  }
+}
+
+#block-agolf-local-tasks{
+  .content{
+    ul{
+      @include flexbox;
+      list-style: none;
+      padding: 0;
+      li{
+        a{
+          padding: 10px 20px;
+        }
+      }
+    }
+  }
+}

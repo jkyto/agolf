@@ -1,0 +1,73 @@
+<?php
+
+/**
+ * @file
+ * Functions to support theming in the AGolf theme.
+ */
+
+use Drupal\Core\Template\Attribute;
+
+/**
+ * Implements hook_preprocess_HOOK() for HTML document templates.
+ *
+ * Adds body classes if certain regions have content.
+ */
+function agolf_preprocess_html(&$variables) {
+
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for page templates.
+ */
+function agolf_preprocess_page_title(&$variables) {
+
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for maintenance-page.html.twig.
+ */
+function agolf_preprocess_maintenance_page(&$variables) {
+    // By default, site_name is set to Drupal if no db connection is available
+    // or during site installation. Setting site_name to an empty string makes
+    // the site and update pages look cleaner.
+    // @see template_preprocess_maintenance_page
+    if (!$variables['db_is_active']) {
+        $variables['site_name'] = '';
+    }
+
+    // Bartik has custom styling for the maintenance page.
+    $variables['#attached']['library'][] = 'agolf/maintenance_page';
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for node.html.twig.
+ */
+function agolf_preprocess_node(&$variables) {
+
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for block.html.twig.
+ */
+function agolf_preprocess_block(&$variables) {
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for menu.html.twig.
+ */
+function agolf_preprocess_menu(&$variables) {
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK_alter() for form templates.
+ */
+function agolf_theme_suggestions_form_alter(array &$suggestions, array $variables) {
+
+}
+
+/**
+ * Implements hook_form_alter() to add classes to the search form.
+ */
+function agolf_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+
+}
