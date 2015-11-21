@@ -1,0 +1,17 @@
+uuid: b2bd4d65-24b1-485f-9155-854d014e1eb1
+langcode: en
+status: true
+dependencies:
+  config:
+    - image.style.featured_small
+    - image.style.large
+id: featured_small
+label: 'Featured small'
+image_style_mappings:
+  -
+    breakpoint_id: responsive_image.viewport_sizing
+    multiplier: 1x
+    image_mapping_type: image_style
+    image_mapping: featured_small
+breakpoint_group: responsive_image
+fallback_image_style: large

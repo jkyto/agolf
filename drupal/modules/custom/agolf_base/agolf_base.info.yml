@@ -1,0 +1,6 @@
+name: AGolf base
+type: module
+description: Provides base functionality for AGolf sites
+core: 8.x
+dependencies:
+  - text

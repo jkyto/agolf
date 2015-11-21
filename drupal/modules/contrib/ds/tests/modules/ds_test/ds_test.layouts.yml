@@ -1,6 +1,7 @@
 dstest_1col:
   label: Test One column
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/dstest-1col
   regions:
@@ -9,6 +10,7 @@ dstest_1col:
 dstest_2col:
   label: Test Two column
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/dstest-2col
   css: css/dstest-2col.css

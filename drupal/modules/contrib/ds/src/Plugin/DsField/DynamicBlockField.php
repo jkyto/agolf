@@ -28,4 +28,16 @@ class DynamicBlockField extends BlockBase {
     return $definition['properties']['block'];
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  protected function blockConfig() {
+    $block_config = array();
+    $definition = $this->getPluginDefinition();
+    if (isset($definition['properties']['config'])) {
+      $block_config = $definition['properties']['config'];
+    }
+    return $block_config;
+  }
+
 }

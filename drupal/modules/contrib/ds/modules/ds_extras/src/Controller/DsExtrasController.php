@@ -62,7 +62,7 @@ class DsExtrasController extends ControllerBase {
     $node = $this->entityManager()->getStorage('node')->loadRevision($node_revision);
 
     // Determine view mode.
-    $view_mode = \Drupal::config('ds.extras')->get('override_node_revision_view_mode');
+    $view_mode = \Drupal::config('ds_extras.settings')->get('override_node_revision_view_mode');
 
     drupal_static('ds_view_mode', $view_mode);
 
@@ -76,7 +76,7 @@ class DsExtrasController extends ControllerBase {
    * Checks access for the switch view mode route
    */
   public function accessSwitchViewMode() {
-    return $this->config('ds.extras')->get('switch_field') ? AccessResult::allowed() : AccessResult::forbidden();
+    return $this->config('ds_extras.settings')->get('switch_field') ? AccessResult::allowed() : AccessResult::forbidden();
   }
 
 }

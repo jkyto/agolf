@@ -15,8 +15,7 @@ use Drupal\ds\Ds;
  * @DsFieldTemplate(
  *   id = "minimal",
  *   title = @Translation("Minimal"),
- *   theme = "theme_ds_field_minimal",
- *   path = "includes/theme.inc"
+ *   theme = "ds_field_minimal",
  * )
  */
 class Minimal extends DsFieldTemplateBase {

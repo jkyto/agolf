@@ -38,3 +38,18 @@ entity.user.contextual_tab:
   base_route: entity.user.canonical
   title: 'Manage display'
   weight: 10
+ds.manage_block_field_task:
+  route_name: ds.manage_block_field
+  title: Edit
+  base_route: ds.manage_block_field_task
+  weight: 0
+ds.manage_block_field_config_task:
+  route_name: ds.manage_block_field_config
+  title: Configure block
+  base_route: ds.manage_block_field_task
+  weight: 1
+ds.delete_field_task:
+  route_name: ds.delete_field
+  title: Delete
+  base_route: ds.manage_block_field_task
+  weight: 2

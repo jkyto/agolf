@@ -72,7 +72,7 @@ class EntityRow extends ViewsEntityRow {
     parent::buildOptionsForm($form, $form_state);
 
     // Use view mode of display settings.
-    if ($this->entityType == 'node' && \Drupal::config('ds.extras')->get('switch_view_mode')) {
+    if ($this->entityType == 'node' && \Drupal::moduleHandler()->moduleExists('ds_switch_view_mode')) {
       $form['switch_fieldset'] = array(
         '#type' => 'details',
         '#title' => t('Use view mode of display settings'),

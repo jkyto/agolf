@@ -1,0 +1,12 @@
+.promoted-to-front-page{
+  @include flexbox;
+  @include flex-wrap(wrap);
+  .views-row{
+    width: 50%;
+    padding: 10px;
+
+    @include breakpoint(large) {
+      width: 25%;
+    }
+  }
+}

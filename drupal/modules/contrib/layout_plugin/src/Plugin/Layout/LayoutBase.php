@@ -7,6 +7,7 @@
 
 namespace Drupal\layout_plugin\Plugin\Layout;
 
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\PluginBase;
 use Drupal\layout_plugin\Layout;
 
@@ -14,6 +15,12 @@ use Drupal\layout_plugin\Layout;
  * Provides a base class for Layout plugins.
  */
 abstract class LayoutBase extends PluginBase implements LayoutInterface {
+
+  /**
+   * @var array
+   * The layout configuration.
+   */
+  protected $configuration = [];
 
   /**
    * Get the plugin's description.
@@ -93,6 +100,8 @@ abstract class LayoutBase extends PluginBase implements LayoutInterface {
    */
   public function build(array $regions) {
     $build = $regions;
+    $build['#layout'] = $this->getPluginDefinition();
+    $build['#settings'] = $this->getConfiguration();
     if ($theme = $this->getTheme()) {
       $build['#theme'] = $theme;
     }
@@ -102,4 +111,51 @@ abstract class LayoutBase extends PluginBase implements LayoutInterface {
     return $build;
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+    return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateConfigurationForm(array &$form, FormStateInterface $form_state) {
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
+    $this->configuration = $form_state->getValues();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getConfiguration() {
+    return array_merge($this->defaultConfiguration(), $this->configuration);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setConfiguration(array $configuration) {
+    $this->configuration = $configuration;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function defaultConfiguration() {
+    return [];
+  }
+
+  /**
+   * @{inheritdoc}
+   */
+  public function calculateDependencies() {
+    return [];
+  }
 }

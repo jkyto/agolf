@@ -13,6 +13,7 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FormatterInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
+use Drupal\Core\Template\Attribute;
 use Drupal\Core\Url;
 use Drupal\ds\Ds;
 use Drupal\ds\Plugin\DsFieldTemplate\DsFieldTemplateInterface;
@@ -23,24 +24,56 @@ use Drupal\layout_plugin\Layout;
  * Implements hook_theme().
  */
 function ds_theme() {
-  module_load_include('inc', 'ds', 'includes/registry');
-  return _ds_theme();
-}
+  $theme_functions = array();
 
-/**
- * Implements hook_ds_layout_info().
- */
-function ds_ds_layout_info() {
-  module_load_include('inc', 'ds', 'includes/registry');
-  return _ds_ds_layout_info();
+  // Field templates
+  if (\Drupal::config('ds.settings')->get('field_template')) {
+    $field_layouts = \Drupal::service('plugin.manager.ds.field.layout')->getDefinitions();
+    foreach ($field_layouts as $key => $plugin) {
+      if ($key != 'default') {
+        $theme_functions['field__' . $plugin['theme']] = array(
+          'render element' => 'elements',
+          'template' => strtr($plugin['theme'], '_', '-'),
+          'base hook' => 'field',
+          'path' => drupal_get_path('module', $plugin['provider']) . '/templates',
+        );
+
+        if (!empty($plugin['path'])) {
+          $theme_functions['field__' . $plugin['theme']]['file'] = $plugin['path'];
+        }
+      }
+    }
+  }
+
+  return $theme_functions;
 }
 
 /**
  * Implements hook_theme_registry_alter().
  */
 function ds_theme_registry_alter(&$theme_registry) {
-  module_load_include('inc', 'ds', 'includes/registry');
-  _ds_theme_registry_alter($theme_registry);
+  $layouts = Ds::getLayouts();
+  foreach ($layouts as $info) {
+    $key = $info['theme'];
+    // Only add preprocess functions if entity exposes theme function, and this
+    // layout is using the Display Suite layout class.
+    foreach ($theme_registry as $theme_registry_item_key => $theme_registry_item) {
+      if (substr($theme_registry_item_key, 0, strlen($key)) == $key && $info['class'] == '\Drupal\ds\Plugin\DsLayout') {
+        if (function_exists('field_group_build_entity_groups')) {
+          $theme_registry[$theme_registry_item_key]['preprocess functions'][] = 'field_group_build_entity_groups';
+        }
+        $theme_registry[$theme_registry_item_key]['preprocess functions'][] = 'ds_preprocess_ds_layout';
+      }
+    }
+  }
+
+  // Remove ds_preprocess_field in case field templates is not enabled.
+  if (!\Drupal::config('ds.settings')->get('field_template')) {
+    $key = array_search('ds_preprocess_field', $theme_registry['field']['preprocess functions']);
+    if (!empty($key)) {
+      unset($theme_registry['field']['preprocess functions'][$key]);
+    }
+  }
 }
 
 /**
@@ -59,8 +92,24 @@ function ds_form_entity_view_display_edit_form_alter(&$form, FormStateInterface 
  * Implements hook_module_implements_alter().
  */
 function ds_module_implements_alter(&$implementations, $hook) {
-  \Drupal::moduleHandler()->loadInclude('ds', 'inc', 'includes/registry');
-  _ds_module_implements_alter($implementations, $hook);
+  // node_entity_view_display_alter() disables all labels on all fields
+  // when the view mode is 'search_index'. If you set display modes for
+  // this view mode by hand, then the hook isn't needed. Since this
+  // may be called dozens of times on some pages, it's worth disabling it.
+  if ($hook == 'entity_view_display_alter') {
+    unset($implementations['node']);
+  }
+
+  // Because it's possible to turn on/off field templates,
+  // we'll unset hooks here so ds_preprocess_field() doesn't run.
+  $ft_hooks = array(
+    'ds_field_settings_alter',
+    'form_ds_classes_form_alter',
+    'form_field_ui_field_edit_form_alter',
+  );
+  if (!\Drupal::config('ds.settings')->get('field_template') && in_array($hook, $ft_hooks)) {
+    unset($implementations['ds']);
+  }
 }
 
 /**
@@ -93,7 +142,7 @@ function ds_entity_view_alter(&$build, EntityInterface $entity, EntityDisplayInt
   // Load field permissions and layouts only once.
   if (!$loaded) {
     $loaded = TRUE;
-    $field_permissions = \Drupal::config('ds.extras')->get('field_permissions');
+    $field_permissions = \Drupal::config('ds_extras.settings')->get('field_permissions');
   }
 
   // Get configuration.
@@ -135,50 +184,54 @@ function ds_entity_view_alter(&$build, EntityInterface $entity, EntityDisplayInt
   $fields = Ds::getFields($entity_type);
   $field_values = !empty($configuration['fields']) ? $configuration['fields'] : array();
 
-  foreach ($field_values as $key => $field) {
+  foreach ($configuration['regions'] as $region_name => $region) {
+    foreach ($region as $weight => $key) {
+      // Ignore if this field is not a DS field, just pull it in from the entity.
+      if (!isset($fields[$key])) {
+        if (isset($build[$key])) {
+          $build[$region_name][$key] = $build[$key];
+        }
+        continue;
+      }
 
-    // Ignore if this field is not a DS field.
-    if (!isset($fields[$key])) {
-      continue;
-    }
+      $field = $fields[$key];
+      if (isset($field_values[$key]['formatter'])) {
+        $field['formatter'] = $field_values[$key]['formatter'];
+      }
 
-    $field = $fields[$key];
-    if (isset($field_values[$key]['formatter'])) {
-      $field['formatter'] = $field_values[$key]['formatter'];
-    }
+      if (isset($field_values[$key]['settings'])) {
+        $field['settings'] = $field_values[$key]['settings'];
+      }
 
-    if (isset($field_values[$key]['settings'])) {
-      $field['settings'] = $field_values[$key]['settings'];
-    }
+      $field_value = Ds::getFieldValue($key, $field, $entity, $view_mode, $display, $build);
 
-    $field_value = Ds::getFieldValue($key, $field, $entity, $view_mode, $display, $build);
-
-    // Only allow non empty fields
-    if (!empty($field_value)) {
-      $build[$key] = array(
-        '#theme' => 'field',
-        '#field_type' => 'ds',
-        '#title' => $field['title'],
-        '#weight' => isset($field_values[$key]['weight']) ? $field_values[$key]['weight'] : 0,
-        '#label_display' => isset($field_values[$key]['label']) ? $field_values[$key]['label'] : 'inline',
-        '#field_name' => $key,
-        '#bundle' => $bundle,
-        '#object' => $entity,
-        '#entity_type' => $entity_type,
-        '#view_mode' => '_custom',
-        '#ds_view_mode' => $view_mode,
-        '#items' => array((object) array('_attributes' => array())),
-        '#is_multiple' => FALSE,
-        '#access' => ($field_permissions && function_exists('ds_extras_ds_field_access')) ? ds_extras_ds_field_access($key, $entity_type) : TRUE,
-        0 => array(
-          $field_value,
-        ),
-      );
+      // Only allow non empty fields
+      if (!empty($field_value)) {
+        $build[$region_name][$key] = array(
+          '#theme' => 'field',
+          '#field_type' => 'ds',
+          '#title' => $field['title'],
+          '#weight' => isset($field_values[$key]['weight']) ? $field_values[$key]['weight'] : $weight,
+          '#label_display' => isset($field_values[$key]['label']) ? $field_values[$key]['label'] : 'inline',
+          '#field_name' => $key,
+          '#bundle' => $bundle,
+          '#object' => $entity,
+          '#entity_type' => $entity_type,
+          '#view_mode' => '_custom',
+          '#ds_view_mode' => $view_mode,
+          '#items' => array((object) array('_attributes' => array())),
+          '#is_multiple' => FALSE,
+          '#access' => ($field_permissions && function_exists('ds_extras_ds_field_access')) ? ds_extras_ds_field_access($key, $entity_type) : TRUE,
+          0 => array(
+            $field_value,
+          ),
+        );
+      }
     }
   }
 
   // Render the layout.
-  $layout = Layout::layoutPluginManager()->createInstance($configuration['layout']['id'], array());
+  $layout = Layout::layoutPluginManager()->createInstance($configuration['layout']['id'], $configuration['layout']['settings']);
   $build = $layout->build($build);
 
   // Disable CSS files when needed
@@ -197,108 +250,100 @@ function ds_entity_view_alter(&$build, EntityInterface $entity, EntityDisplayInt
  * This function is added in ds_theme_registry_alter().
  */
 function ds_preprocess_ds_layout(&$variables) {
+  $layout_settings = $variables['settings'];
+
+  // Fetch the object
   if (isset($variables['content']['#entity_type'])) {
-    // Fetch the object
     $object = $variables['content']['#entity_type'];
+  }
+  else {
+    $object = FALSE;
+  }
 
-    if (isset($variables['content']['#ds_configuration'])) {
-      $configuration = $variables['content']['#ds_configuration'];
-      $render_container = 'content';
+  // Template layout.
+  if (!isset($variables['attributes']['class'])) {
+    $variables['attributes']['class'] = array();
+  }
 
-      // Template layout.
-      if (!isset($variables['attributes']['class'])) {
-        $variables['attributes']['class'] = array();
+  // If the layout has wrapper class lets add it.
+  if (!empty($layout_settings['classes']['layout_class'])) {
+    foreach ($layout_settings['classes']['layout_class'] as $layout_class) {
+      $variables['attributes']['class'][] = $layout_class;
+    }
+  }
+
+  // Create region variables based on the layout settings.
+  foreach ($layout_settings['wrappers'] as $region_name => $wrapper) {
+    $variables[$region_name . '_classes'] = !empty($layout_settings['classes'][$region_name]) ? ' ' . implode(' ', $layout_settings['classes'][$region_name]) : '';
+    $variables[$region_name . '_wrapper'] = !empty($layout_settings['wrappers'][$region_name]) ? $layout_settings['wrappers'][$region_name] : 'div';
+  }
+
+  // Add a layout wrapper.
+  $variables['outer_wrapper'] = isset($layout_settings['outer_wrapper']) ? $layout_settings['outer_wrapper'] : 'div';
+
+  // Add custom attributes if any.
+  if (!empty($layout_settings['attributes'])) {
+    $layout_attributes = explode(',', $layout_settings['attributes']);
+    foreach ($layout_attributes as $layout_attribute) {
+      $replaced_attribute = $layout_attribute;
+      if (strpos($layout_attribute, '|') !== FALSE) {
+        if (isset($object)) {
+          $replaced_attribute = \Drupal::service('token')->replace(
+            $layout_attribute,
+            array($variables['content']['#entity_type'] => $variables['content']['#' . $object]),
+            array('clear' => TRUE)
+          );
+        }
+        list($key, $attribute_value) = explode('|', $replaced_attribute);
+        $variables['attributes'][$key] = $attribute_value;
       }
+    }
+  }
 
+  // Add an onclick attribute on the wrapper.
+  if (!empty($layout_settings['link_attribute'])) {
+    $url = '';
+    switch ($layout_settings['link_attribute']) {
+      case 'content':
+        if ($object) {
+          $url = $variables['content']['#' . $object]->urlInfo()->getInternalPath();
+        }
+        break;
+      case 'custom':
+        $url = $layout_settings['link_custom'];
+        break;
+      case 'tokens':
+        if ($object) {
+          $url = \Drupal::service('token')->replace($layout_settings['link_custom'], array($layout_settings => $variables['content']['#' . $object]), array('clear' => TRUE));
+        }
+        break;
+    }
+
+    if (!empty($url)) {
+      $url = Url::fromUri('internal:/' . $url);
+      $variables['attributes']['onclick'] = 'location.href=\'' . $url->toString() . '\'';
+    }
+  }
+
+  if ($object) {
+    if (isset($variables['content']['#ds_configuration'])) {
       // Add view-mode-{name} to classes.
       if (!in_array('view-mode-' . $variables['content']['#view_mode'], $variables['attributes']['class'])) {
         $variables['attributes']['class'][] = 'view-mode-' . $variables['content']['#view_mode'];
       }
 
-      // If the layout has wrapper class lets add it.
-      if (isset($configuration['layout']['settings']['classes']['layout_class'])) {
-        foreach ($configuration['layout']['settings']['classes']['layout_class'] as $layout_class) {
-          $variables['attributes']['class'][] = $layout_class;
-        }
-      }
-
-      // Create region variables based on the layout settings.
-      foreach ($configuration['layout']['settings']['wrappers'] as $region_name => $wrapper) {
-
-        $layout_render_array[$region_name] = array();
-
-        // Create the region content.
-        if (!empty($configuration['regions'][$region_name])) {
-          foreach ($configuration['regions'][$region_name] as $key => $field) {
-            // Make sure the field exists.
-            if (!isset($variables[$render_container][$field])) {
-              continue;
-            }
-            if (!isset($variables[$render_container][$field]['#weight'])) {
-              $variables[$render_container][$field]['#weight'] = $key;
-            }
-            $layout_render_array[$region_name][$key] = $variables[$render_container][$field];
-          }
-        }
-
-        $variables[$region_name . '_classes'] = !empty($configuration['layout']['settings']['classes'][$region_name]) ? ' ' . implode(' ', $configuration['layout']['settings']['classes'][$region_name]) : '';
-        $variables[$region_name . '_wrapper'] = !empty($configuration['layout']['settings']['wrappers'][$region_name]) ? $configuration['layout']['settings']['wrappers'][$region_name] : 'div';
-      }
-
       // Let other modules know we have rendered.
       $variables['rendered_by_ds'] = TRUE;
 
-      // Add a layout wrapper.
-      $variables['outer_wrapper'] = isset($configuration['layout']['settings']['outer_wrapper']) ? $configuration['layout']['settings']['outer_wrapper'] : 'div';
-
-      // Add custom attributes if any.
-      if (!empty($configuration['layout']['settings']['attributes'])) {
-        $layout_attributes = explode(',', $configuration['layout']['settings']['attributes']);
-        foreach ($layout_attributes as $layout_attribute) {
-          $replaced_attribute = $layout_attribute;
-          if (strpos($layout_attribute, '|') !== FALSE) {
-            if (isset($object)) {
-              $replaced_attribute = \Drupal::service('token')->replace(
-                $layout_attribute,
-                array($variables['content']['#entity_type'] => $variables['content']['#' . $object]),
-                array('clear' => TRUE)
-              );
-            }
-            list($key, $attribute_value) = explode('|', $replaced_attribute);
-            $variables['attributes'][$key] = $attribute_value;
-          }
-        }
-      }
-
-      // Add an onclick attribute on the wrapper.
-      if (!empty($configuration['layout']['settings']['link_attribute'])) {
-        $url = '';
-        switch ($configuration['layout']['settings']['link_attribute']) {
-          case 'content':
-            $url = $variables['content']['#' . $object]->urlInfo()->getInternalPath();
-            break;
-          case 'custom':
-            $url = $configuration['layout']['settings']['link_custom'];
-            break;
-          case 'tokens':
-            $url = \Drupal::service('token')->replace($configuration['layout']['settings']['link_custom'], array($variables['content']['#entity_type'] => $variables['content']['#' . $object]), array('clear' => TRUE));
-            break;
-        }
-
-        if (!empty($url)) {
-          $url = Url::fromUri('internal:/' . $url);
-          $variables['attributes']['onclick'] = 'location.href=\'' . $url->toString() . '\'';
-
-        }
-      }
-
-      // Let other modules alter the ds array before creating the region variables.
+      // Let other modules alter the ds array before rendering.
       $context = array('entity' => isset($variables[$object]) ? $variables[$object] : (isset($variables['content']['#' . $object]) ? $variables['content']['#' . $object] : ''), 'entity_type' => $variables['content']['#entity_type'], 'bundle' => $variables['content']['#bundle'], 'view_mode' => $variables['content']['#view_mode']);
-      \Drupal::moduleHandler()->alter('ds_pre_render', $layout_render_array, $context, $variables);
-      foreach ($layout_render_array as $region_name => $content) {
-        $variables[$region_name] = drupal_render($content);
-      }
+      \Drupal::moduleHandler()->alter('ds_pre_render', $variables['content'], $context, $variables);
     }
+  }
+
+  // Copy the regions from 'content' into the top-level.
+  foreach(Element::children($variables['content']) as $name) {
+    $variables[$name] = $variables['content'][$name];
   }
 }
 
@@ -411,7 +456,6 @@ function ds_preprocess_field(&$variables) {
           $layout_instance->setEntity($variables['element']['#object']);
         }
         $layout_instance->massageRenderValues($variables['ds-config']['settings'], $config['settings']);
-        $layout_instance->sanitizeRenderValues($variables['ds-config']['settings']);
       }
     }
 
@@ -484,7 +528,6 @@ function ds_theme_suggestions_field_alter(&$suggestions, $variables) {
       $layout_instance = \Drupal::service('plugin.manager.ds.field.layout')->createInstance($config['id']);
 
       // Either it uses the function.
-      $suggestions = array();
       $suggestions[] = 'field__' . $layout_instance->getThemeFunction();
 
       // Or the template file(s).
@@ -493,14 +536,12 @@ function ds_theme_suggestions_field_alter(&$suggestions, $variables) {
     // Check if we have a default field template on field level.
     elseif ($field instanceof FieldConfigInterface && ($theme_function = $field->getThirdPartySetting('ds', 'ds_field_template', '')) && !empty($theme_function)) {
       // Either it uses the function.
-      $suggestions = array();
       $suggestions[] = 'field__theme_ds_field_' . $theme_function;
 
       // Or the template file(s).
       $suggestion = 'field__' . $theme_function;
     }
     elseif (!empty($field_theme_function)) {
-      $suggestions = array();
       $suggestions[] = 'field__theme_ds_field_' . $field_theme_function;
 
       // Or the template file(s).
@@ -564,8 +605,8 @@ function ds_field_template_settings_form(array &$form, FormStateInterface &$form
     '#type' => 'select',
     '#options' => $functions,
     '#default_value' => $field_function,
-    '#ajax' => array(
     '#submit' => array('ds_field_ui_display_overview_multistep_submit'),
+    '#ajax' => array(
       'callback' => 'ds_field_ui_display_overview_multistep_js',
       'wrapper' => 'field-display-overview-wrapper',
     ),
@@ -674,4 +715,65 @@ function ds_hook_info() {
     'group' => 'ds',
   );
   return $hooks;
+}
+
+/**
+ * Implements template_preprocess_ds_field_reset().
+ */
+function template_preprocess_field__ds_field_reset(&$variables) {
+  $variables['show_colon'] = \Drupal::config('ds.settings')->get('ft-show-colon');
+}
+
+/**
+ * Implements template_preprocess_ds_field_minimal().
+ */
+function template_preprocess_field__ds_field_minimal(&$variables) {
+  $variables['settings'] = isset($variables['ds-config']['settings']) ? $variables['ds-config']['settings'] : [];
+}
+
+/**
+ * Implements template_preprocess_ds_field_expert().
+ */
+function template_preprocess_field__ds_field_expert(&$variables) {
+  $variables['settings'] = isset($variables['ds-config']['settings']) ? $variables['ds-config']['settings'] : [];
+
+  $vars = array(
+    'lbw' => 'label_attributes',
+    'ow' => 'wrapper_attributes',
+    'fis' => 'field_wrapper_attributes',
+    'fi' => 'field_item_wrapper_attributes',
+  );
+
+  foreach ($vars as $key => $variable_name) {
+    $var_attributes = array();
+
+    // Add classes
+    if (!empty($variables['settings'][$key . '-cl'])) {
+      $var_attributes['class'] = explode(' ', $variables['settings'][$key . '-cl']);
+    }
+    // Add attributes
+    if (!empty($variables['settings'][$key . '-at'])) {
+      $attributes = explode(' ', $variables['settings'][$key . '-at']);
+      foreach ($attributes as $key => $attribute) {
+        if (strpos($attribute, '=') !== FALSE) {
+          $attribute_parts = explode('=', $attribute);
+          $var_attributes[$attribute_parts[0]] = trim($attribute_parts[1], '\"');
+        }
+      }
+    }
+
+    $variables[$variable_name] = new Attribute($var_attributes);
+  }
+}
+
+/**
+ * Implements hook_ds_field_operations_alter().
+ */
+function ds_ds_field_operations_alter(&$operations, $field) {
+  if ($field['type'] == 'block') {
+    $operations['config'] = array(
+      'title' => t('Configure block'),
+      'url' => new Url('ds.manage_block_field_config', array('field_key' => $field['id'])),
+    );
+  }
 }

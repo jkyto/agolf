@@ -28,7 +28,7 @@ class FieldPermissionsTest extends FastTestBase {
       'fields[test_field][region]' => 'left',
     );
 
-    $this->config('ds.extras')->set('field_permissions', TRUE)->save();
+    $this->config('ds_extras.settings')->set('field_permissions', TRUE)->save();
     \Drupal::moduleHandler()->resetImplementations();
 
     $this->dsSelectLayout();

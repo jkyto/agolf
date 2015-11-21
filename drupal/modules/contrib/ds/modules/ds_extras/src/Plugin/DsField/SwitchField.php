@@ -138,7 +138,7 @@ class SwitchField extends DsFieldBase {
    * {@inheritdoc}
    */
   public function isAllowed() {
-    if (\Drupal::config('ds.extras')->get('switch_field')) {
+    if (\Drupal::config('ds_extras.settings')->get('switch_field')) {
       return TRUE;
     }
 

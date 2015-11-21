@@ -10,6 +10,7 @@ namespace Drupal\ds\Controller;
 use Drupal\Core\Config\StorageInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -27,20 +28,31 @@ class FieldController extends ControllerBase implements ContainerInjectionInterf
   protected $storage;
 
   /**
+   * The module handler
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface;
+   */
+  protected $moduleHandler;
+
+  /**
    * Constructs a \Drupal\ds\Routing\FieldController object.
    *
    * @param \Drupal\Core\Config\StorageInterface $storage
    *   The configuration storage.
    */
-  public function __construct(StorageInterface $storage) {
+  public function __construct(StorageInterface $storage, ModuleHandlerInterface $module_handler) {
     $this->storage = $storage;
+    $this->moduleHandler = $module_handler;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static($container->get('config.storage'));
+    return new static(
+      $container->get('config.storage'),
+      $container->get('module_handler')
+    );
   }
 
   /**
@@ -70,8 +82,11 @@ class FieldController extends ControllerBase implements ContainerInjectionInterf
         );
         $operations['delete'] = array(
           'title' => $this->t('Delete'),
-          'url' => new Url('ds.delete_field', array('field' => $field_value['id'])),
+          'url' => new Url('ds.delete_field', array('field_key' => $field_value['id'])),
         );
+
+        $this->moduleHandler->alter('ds_field_operations', $operations, $field_value);
+
         $row[] = array(
           'data' => array(
             '#type' => 'operations',

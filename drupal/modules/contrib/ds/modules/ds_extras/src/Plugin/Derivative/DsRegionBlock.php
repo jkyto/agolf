@@ -20,7 +20,7 @@ class DsRegionBlock extends DeriverBase {
    * Implements \Drupal\Component\Plugin\Derivative\DerivativeInterface::getDerivativeDefinitions().
    */
   public function getDerivativeDefinitions($base_plugin_definition) {
-   $region_blocks = \Drupal::config('ds.extras')->get('region_blocks');
+   $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
 
     if (empty($region_blocks)) {
       return $this->derivatives;

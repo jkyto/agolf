@@ -216,5 +216,14 @@ function hook_ds_classes_alter(&$classes, $name) {
 }
 
 /**
+ * Allow modules to alter the operations on the dynamic field overview page.
+ */
+function hook_ds_field_operations_alter(&$operations, $field) {
+  if ($field['type'] == 'block') {
+    unset($operations['edit']);
+  }
+}
+
+/**
  * @} End of "addtogroup hooks".
  */

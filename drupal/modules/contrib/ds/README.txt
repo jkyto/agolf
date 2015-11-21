@@ -6,12 +6,12 @@
             /_/            /____/
 
 Display Suite gives you full control over the way content is displayed without
-having to maintain dozens of PHP template files.
-Read more: http://drupal.org/node/644662
+having to maintain dozens of twig files.
+Read more: https://drupal.org/node/644662
 
 -- GETTING STARTED --
 
-1. Install Display Suite in the usual way (http://drupal.org/node/895232)
+1. Install Display Suite in the usual way (https://drupal.org/node/895232)
 2. Go to Administration > Structure > Display Suite
    (admin/structure/ds/)
 3. Click "Manage display" for the entity (e.g., "User") whose display you like
@@ -20,24 +20,22 @@ Read more: http://drupal.org/node/644662
    template (e.g. "Two column stacked") and click "Apply"
 5. Start managing the display by dragging fields to regions
 6. Click "Save"
-Read more: http://drupal.org/node/1795282
+Read more: https://drupal.org/node/1795282
 
 -- LINKS --
 
-Project page: http://drupal.org/project/ds
-Documentation: http://drupal.org/node/644662
-Screen casts & articles: http://drupal.org/node/644706
-Submit bug reports, feature suggestions: http://drupal.org/project/issues/ds
+Project page: https://drupal.org/project/ds
+Documentation: https://drupal.org/node/644662
+Screen casts & articles: https://drupal.org/node/644706
+Submit bug reports, feature suggestions: https://drupal.org/project/issues/ds
 
 -- MAINTAINERS --
 
-swentel - http://drupal.org/user/107403
-stalski - http://drupal.org/user/322618
-zuuperman - http://drupal.org/user/361625
-jyve - http://drupal.org/user/591438
-aspilicious - http://drupal.org/user/172527
+aspilicious - https://drupal.org/u/aspilicious
+swentel - https://drupal.org/u/swentel
+bceyssens - https://www.drupal.org/u/bceyssens
 
 -- INSPIRATORS --
 
-mzenner - http://drupal.org/user/35077
-Wimmmmm - http://drupal.org/user/34940
+mzenner - https://drupal.org/u/mzenner
+Wimmmmm - https://drupal.org/u/Wimmmmm

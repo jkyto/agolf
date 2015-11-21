@@ -20,13 +20,16 @@ abstract class BlockBase extends DsFieldBase {
   public function build() {
     $manager = \Drupal::service('plugin.manager.block');
 
-    // Create the wanted block class
-    $id = $this->blockPluginId();
+    // Create an instance of the block.
     /** @var $block BlockPluginInterface */
-    $block = $manager->createInstance($id);
+    $block_id = $this->blockPluginId();
+    $block = $manager->createInstance($block_id);
+
+    // Apply block config.
+    $block_config = $this->blockConfig();
+    $block->setConfiguration($block_config);
 
     // Get render array.
-    // @todo check label/subject.
     $block_elements = $block->build();
 
     return $block_elements;
@@ -39,4 +42,10 @@ abstract class BlockBase extends DsFieldBase {
     return '';
   }
 
+  /**
+   * Returns the config of the block.
+   */
+  protected function blockConfig() {
+    return array();
+  }
 }

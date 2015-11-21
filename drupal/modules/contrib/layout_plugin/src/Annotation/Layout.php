@@ -13,7 +13,7 @@ use Drupal\Component\Annotation\Plugin;
  * Defines a Layout annotation object.
  *
  * Layouts are used to define a list of regions and then output render arrays
- * in each of the regions, usually using a theme function.
+ * in each of the regions, usually using a template.
  *
  * Plugin namespace: Plugin\Layout
  *
@@ -77,10 +77,10 @@ class Layout extends Plugin {
   public $category;
 
   /**
-   * The theme function to render this layout.
+   * The theme hook used to render this layout.
    *
    * If specified, it's assumed that the module or theme registering this layout
-   * will also register the theme function with hook_theme() itself. This is
+   * will also register the theme hook with hook_theme() itself. This is
    * mutually exclusive with 'template' - you can't specify both.
    *
    * @var string optional

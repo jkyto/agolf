@@ -50,6 +50,8 @@ ds.field.properties.block:
     block:
       type: string
       label: 'Block plugin ID'
+    config:
+      type: block.settings.[%parent.block]
 
 ds.field.properties.copy:
   type: mapping

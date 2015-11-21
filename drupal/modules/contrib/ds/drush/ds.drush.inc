@@ -136,7 +136,7 @@ function drush_ds_build($name = NULL) {
   drush_op('ds_file_preg_replace', array($layout_path . "/$twig_machine_name.html.twig", $layout_path . "/$machine_name.inc"), $find, $replace);
 
   // Notify user of the newly created templates.
-  drush_print(dt('Templates for "!name" created in: !path', array('!name' => $name, '!path' => $layout_path)));
+  drush_print(dt('Templates for "@name" created in: @path', array('@name' => $name, '@path' => $layout_path)));
 }
 
 /**
@@ -285,5 +285,5 @@ function drush_ds_field($name = NULL) {
   drush_op('ds_file_preg_replace', array($class_path . "/$name.php"), $find, $replace);
 
   // Notify user of the newly created class.
-  drush_print(dt('"!name" class created in: !class_path', array('!name' => $name, '!class_path' => $class_path)));
+  drush_print(dt('"@name" class created in: @class_path', array('@name' => $name, '@class_path' => $class_path)));
 }

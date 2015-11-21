@@ -1,0 +1,23 @@
+entityqueue.entity_queue.*:
+  type: config_entity
+  label: 'EntityQueue config'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    target_type:
+      type: string
+      label: 'Type of items to queue'
+    min_size:
+      type: integer
+      label: 'Minimun queue size'
+    max_size:
+      type: integer
+      label: 'Maximum queue size'
+    act_as_queue:
+      type: boolean
+      label: 'Act as queue'
+#    reference_field_settings:

@@ -1,0 +1,12 @@
+#block-agolf-branding{
+  @extend .float-left;
+}
+#block-agolf-main-menu{
+  @extend .float-right;
+}
+
+#block-agolf-content{
+  .paragraph{
+    margin: 20px 0;
+  }
+}

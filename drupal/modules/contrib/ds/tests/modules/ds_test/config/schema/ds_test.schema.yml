@@ -1,4 +1,4 @@
-ds.field_template.ds_test_theming_function:
+ds.field_template.ds_test_template:
   type: config_object
   label: 'The settings of the ds_test_theming_function field template'
   mapping:

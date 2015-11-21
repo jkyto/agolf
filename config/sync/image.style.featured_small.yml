@@ -1,0 +1,14 @@
+uuid: 3128383b-5511-471c-a73d-6115054e592e
+langcode: en
+status: true
+dependencies: {  }
+name: featured_small
+label: 'Featured small'
+effects:
+  d2be40c0-0c57-47de-b800-ce12e35186c0:
+    uuid: d2be40c0-0c57-47de-b800-ce12e35186c0
+    id: image_scale_and_crop
+    weight: 1
+    data:
+      width: 480
+      height: 240

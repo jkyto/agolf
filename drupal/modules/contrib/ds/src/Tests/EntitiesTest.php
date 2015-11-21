@@ -7,14 +7,19 @@
 
 namespace Drupal\ds\Tests;
 
-use Drupal\Component\Utility\Html;
-
 /**
  * Tests for display of nodes and fields.
  *
  * @group ds
  */
 class EntitiesTest extends FastTestBase {
+
+  /**
+   * Modules to install.
+   *
+   * @var array
+   */
+  public static $modules = array('node', 'field_ui', 'taxonomy', 'block', 'ds', 'ds_test', 'layout_plugin', 'ds_switch_view_mode');
 
   /**
    * {@inheritdoc}
@@ -26,23 +31,6 @@ class EntitiesTest extends FastTestBase {
     \Drupal::configFactory()->getEditable('ds.settings')
       ->set('field_template', TRUE)
       ->save();
-
-    // Enable switch view mode
-    \Drupal::configFactory()->getEditable('ds.extras')
-      ->set('switch_view_mode', TRUE)
-      ->save();
-
-    // Run update.php to add the ds_switch field.
-    $url = $GLOBALS['base_url'] . '/update.php';
-    $this->drupalGet($url, array('external' => TRUE));
-    $this->clickLink(t('Continue'));
-    $this->clickLink(t('Apply pending updates'));
-
-    // Turn off maintenance mode.
-    $edit = array(
-      'maintenance_mode' => FALSE,
-    );
-    $this->drupalPostForm('admin/config/development/maintenance', $edit, t('Save configuration'));
   }
 
   /**
@@ -56,12 +44,16 @@ class EntitiesTest extends FastTestBase {
     // Look at node and verify token and block field.
     $this->drupalGet('node/' . $node->id());
     $this->assertRaw('view-mode-full', 'Template file found (in full view mode)');
-    $this->assertRaw('<div class="field-item">' . $node->getTitle() . '</div>', t('Token field found'));
+    $this->assertRaw('<div class="field field--name-dynamic-token-fieldnode-token-field field--type-ds field--label-hidden field__item">', t('Token field found'));
+    $xpath = $this->xpath('//div[@class="field field--name-dynamic-token-fieldnode-token-field field--type-ds field--label-hidden field__item"]');
+    $this->assertEqual((string) $xpath[0]->p, $node->getTitle(), 'Token field content found');
     $this->assertRaw('group-header', 'Template found (region header)');
     $this->assertRaw('group-footer', 'Template found (region footer)');
     $this->assertRaw('group-left', 'Template found (region left)');
     $this->assertRaw('group-right', 'Template found (region right)');
-    $this->assertPattern('/<div[^>]*>Submitted[^<]*<a[^>]+href="' . preg_quote(base_path(), '/') . 'user\/' . $node->getOwnerId() . '"[^>]*>' . Html::escape($node->getOwner()->getUsername()) . '<\/a>.*<\/div>/', t('Submitted by line found'));
+    $this->assertRaw('<div class="field field--name-node-submitted-by field--type-ds field--label-hidden field__item">', 'Submitted by line found');
+    $xpath = $this->xpath('//div[@class="field field--name-node-submitted-by field--type-ds field--label-hidden field__item"]');
+    $this->assertText('Submitted by ' . (string) $xpath[0]->a->span . ' on', 'Submitted by line found');
 
     // Configure teaser layout.
     $teaser = array(
@@ -108,25 +100,7 @@ class EntitiesTest extends FastTestBase {
     );
     $this->dsConfigureUI($fields);
     $this->drupalGet('node/' . $node->id());
-    $this->assertRaw('view-id-content_recent');
-
-    /*
-    $block = array(
-      'block_render' => DS_BLOCK_TITLE_CONTENT,
-    );
-    $this->dsCreateBlockField($block, 'admin/structure/ds/fields/manage_block/test_block_field', FALSE);
-    $this->drupalGet('node/' . $node->id());
-    $this->assertNoRaw('<h2>Recent content</h2>');
-    $this->assertRaw('Recent content');
-
-    $block = array(
-      'block_render' => DS_BLOCK_CONTENT,
-    );
-    $this->dsCreateBlockField($block, 'admin/structure/ds/fields/manage_block/test_block_field', FALSE);
-    $this->drupalGet('node/' . $node->id());
-    $this->assertNoRaw('<h2>Recent content</h2>');
-    $this->assertNoRaw('Recent content');
-    */
+    $this->assertRaw('field--name-dynamic-block-fieldnode-test-block-field');
 
     // Test revisions. Enable the revision view mode
     $edit = array(
@@ -165,7 +139,10 @@ class EntitiesTest extends FastTestBase {
       'revision_log[0][value]' => 'Test revision',
     );
     $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save and keep published'));
-    $this->assertText('Revisions');
+
+    // Verify the revision is created
+    $this->drupalGet('node/' . $node->id() . '/revisions');
+    $this->assertText('Test revision');
 
     // Assert revision is using 2 col template.
     $this->drupalGet('node/' . $node->id() . '/revisions/1/view');
@@ -178,7 +155,8 @@ class EntitiesTest extends FastTestBase {
     // Test formatter limit on article with tags.
     $edit = array(
       'ds_switch' => '',
-      'field_tags[target_id]' => 'Tag 1, Tag 2'
+      'field_tags[0][target_id]' => 'Tag 1',
+      'field_tags[1][target_id]' => 'Tag 2',
     );
     $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save and keep published'));
     $edit = array(
@@ -204,7 +182,7 @@ class EntitiesTest extends FastTestBase {
     $edit = array(
       'title[0][value]' => 'Hi, I am an article <script>alert(\'with a javascript tag in the title\');</script>',
     );
-    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save'));
+    $this->drupalPostForm('node/' . $node->id() . '/edit', $edit, t('Save and keep published'));
     $this->drupalGet('node/' . $node->id());
     $this->assertRaw('<h2>Hi, I am an article &lt;script&gt;alert(&#039;with a javascript tag in the title&#039;);&lt;/script&gt;</h2>');
   }

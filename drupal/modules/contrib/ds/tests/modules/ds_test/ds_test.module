@@ -75,13 +75,6 @@ function ds_test_layout_alter(&$layouts) {
 }
 
 /**
- * Theme field test function.
- */
-function ds_test_theming_function($variables) {
-  return 'Testing field output through custom function';
-}
-
-/**
  * Implements hook_ds_fields_info_alter().
  */
 function ds_test_ds_fields_info_alter(&$definitions) {

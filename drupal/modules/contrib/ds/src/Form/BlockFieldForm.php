@@ -7,7 +7,10 @@
 
 namespace Drupal\ds\Form;
 
+use Drupal\Core\Block\BlockPluginInterface;
+use Drupal\Core\Form\FormState;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Drupal\ds\Form\FieldFormBase;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 
@@ -33,6 +36,7 @@ class BlockFieldForm extends FieldFormBase implements ContainerInjectionInterfac
    */
   public function buildForm(array $form, FormStateInterface $form_state, $field_key = '') {
     $form = parent::buildForm($form, $form_state, $field_key);
+
     $field = $this->field;
 
     $manager = \Drupal::service('plugin.manager.block');
@@ -58,9 +62,16 @@ class BlockFieldForm extends FieldFormBase implements ContainerInjectionInterfac
    * {@inheritdoc}
    */
   public function getProperties(FormStateInterface $form_state) {
-    return array(
-      'block' => $form_state->getValue('block'),
-    );
+    $properties['block'] = $form_state->getValue('block');
+
+    // Preserve existing block config.
+    $field_key = $form_state->getValue('id');
+    $field = $this->config('ds.field.' . $field_key)->get();
+    if (isset($field['properties']) && ($field['properties']['block'] == $properties['block'])) {
+      $properties = $field['properties'];
+    }
+
+    return $properties;
   }
 
   /**
@@ -75,6 +86,25 @@ class BlockFieldForm extends FieldFormBase implements ContainerInjectionInterfac
    */
   public function getTypeLabel() {
     return 'Block field';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state) {
+    parent::submitForm($form, $form_state);
+
+    // Create an instance of the block to find out if it has a config form.
+    // Redirect to the block config form if there is one.
+    /** @var $block BlockPluginInterface */
+    $manager = \Drupal::service('plugin.manager.block');
+    $block_id = $this->field['properties']['block'];
+    $block = $manager->createInstance($block_id);
+    $block_config_form = $block->blockForm([], new FormState());
+    if ($block_config_form) {
+      $url = new Url('ds.manage_block_field_config', array('field_key' => $this->field['id']));
+      $form_state->setRedirectUrl($url);
+    }
   }
 
 }

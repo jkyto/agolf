@@ -118,4 +118,118 @@ class PluginManagerTest extends UnitTestCase {
     $this->assertEquals('layout_plugin/auto_library', $definition['library']);
   }
 
+  /**
+   * Test getting layout options.
+   *
+   * @covers ::getLayoutOptions
+   */
+  public function testGetLayoutOptions() {
+    /** @var LayoutPluginManager|\PHPUnit_Framework_MockObject_MockBuilder $layout_manager */
+    $layout_manager = $this->getMockBuilder('Drupal\layout_plugin\Plugin\Layout\LayoutPluginManager')
+      ->disableOriginalConstructor()
+      ->setMethods(['getDefinitions'])
+      ->getMock();
+
+    $layout_manager->method('getDefinitions')
+      ->willReturn([
+        'simple_layout' => [
+          'label' => 'Simple layout',
+          'category' => 'Test layouts',
+        ],
+        'complex_layout' => [
+          'label' => 'Complex layout',
+          'category' => 'Test layouts',
+        ],
+      ]);
+
+    $options = $layout_manager->getLayoutOptions();
+    $this->assertEquals([
+      'simple_layout' => 'Simple layout',
+      'complex_layout' => 'Complex layout',
+    ], $options);
+
+    $options = $layout_manager->getLayoutOptions(array('group_by_category' => TRUE));
+    $this->assertEquals([
+      'Test layouts' => [
+        'simple_layout' => 'Simple layout',
+        'complex_layout' => 'Complex layout',
+      ],
+    ], $options);
+  }
+
+  /**
+   * Tests layout theme implementations.
+   *
+   * @covers ::getThemeImplementations
+   */
+  public function testGetThemeImplementations() {
+    /** @var LayoutPluginManager|\PHPUnit_Framework_MockObject_MockBuilder $layout_manager */
+    $layout_manager = $this->getMockBuilder('Drupal\layout_plugin\Plugin\Layout\LayoutPluginManager')
+      ->disableOriginalConstructor()
+      ->setMethods(['getDefinitions'])
+      ->getMock();
+
+    $layout_manager->method('getDefinitions')
+      ->willReturn([
+        // Should get template registered automatically.
+        'simple_layout' => [
+          'path' => 'modules/layout_plugin_test',
+          'template_path' => 'modules/layout_plugin_test/templates',
+          'template' => 'simple-layout',
+          'theme' => 'simple_layout',
+        ],
+        // Shouldn't get registered automatically.
+        'complex_layout' => [
+          'path' => 'modules/layout_plugin_test',
+          'theme' => 'complex_layout',
+        ],
+      ]);
+
+    $theme_registry = $layout_manager->getThemeImplementations();
+    $this->assertEquals([
+      'simple_layout' => [
+        'render element' => 'content',
+        'template' => 'simple-layout',
+        'path' => 'modules/layout_plugin_test/templates',
+      ],
+    ], $theme_registry);
+  }
+
+  /**
+   * Tests layout plugin library info.
+   *
+   * @covers ::getLibraryInfo
+   */
+  public function testGetLibraryInfo() {
+    /** @var LayoutPluginManager|\PHPUnit_Framework_MockObject_MockBuilder $layout_manager */
+    $layout_manager = $this->getMockBuilder('Drupal\layout_plugin\Plugin\Layout\LayoutPluginManager')
+      ->disableOriginalConstructor()
+      ->setMethods(['getDefinitions'])
+      ->getMock();
+
+    $layout_manager->method('getDefinitions')
+      ->willReturn([
+        // Should get template registered automatically.
+        'simple_layout' => [
+          'css' => 'modules/layout_plugin_test/layouts/simple_layout/simple-layout.css',
+          'library' => 'layout_plugin/simple_layout',
+        ],
+        'complex_layout' => [
+          'library' => 'layout_plugin_test/complex_layout',
+        ],
+      ]);
+
+    $library_info = $layout_manager->getLibraryInfo();
+    $this->assertEquals([
+      'simple_layout' => [
+        'version' => 'VERSION',
+        'css' => [
+          'theme' => [
+            '/modules/layout_plugin_test/layouts/simple_layout/simple-layout.css' => [],
+          ],
+        ],
+      ],
+    ], $library_info);
+  }
+
 }

@@ -35,11 +35,6 @@ interface DsFieldTemplateInterface {
   public function massageRenderValues(&$field_settings, $values);
 
   /**
-   * Sanitizes the render values after massaging.
-   */
-  public function sanitizeRenderValues(&$field_settings);
-
-  /**
    * Gets the chosen theme function.
    */
   public function getThemeFunction();

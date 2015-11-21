@@ -7,12 +7,16 @@
 
 namespace Drupal\layout_plugin\Plugin\Layout;
 
+use Drupal\Component\Plugin\ConfigurablePluginInterface;
+use Drupal\Component\Plugin\DerivativeInspectionInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
+use Drupal\Core\Plugin\PluginFormInterface;
 
 /**
  * Provides an interface for static Layout plugins.
  */
-interface LayoutInterface extends PluginInspectionInterface {
+interface LayoutInterface extends PluginInspectionInterface, DerivativeInspectionInterface, ConfigurablePluginInterface, PluginFormInterface {
+
   /**
    * Build a render array for layout with regions.
    *

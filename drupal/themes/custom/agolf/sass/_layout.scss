@@ -1,0 +1,91 @@
+header {
+  @include flex-grid-row;
+  @include top-bar-container;
+  .region-header{
+    @include flexbox;
+    @include justify-content(space-between);
+    @include align-items(center);
+    width: 100%;
+  }
+}
+footer {
+  @include flex-grid-row;
+}
+#page{
+  margin: 10px;
+}
+#main{
+  @include flex-grid-row;
+  @extend .large-unstack;
+  @extend .align-justify;
+  @include justify-content(space-between);
+
+  margin-top: 20px;
+  margin-bottom: 20px;
+
+  #content{
+    //@include flex-grid-column;
+    @extend .columms;
+    @extend .large-8;
+  }
+  .sidebar{
+    @extend .columms;
+    @extend .large-3;
+  }
+}
+
+// messages
+.messages__wrapper{
+  padding: 10px 10px;
+}
+
+// paragraphs
+
+.paragraph--type--photo{
+  img{
+    @include thumbnail;
+    margin-bottom: 4px;
+  }
+
+  .field--name-field-paragraph-photo-caption{
+    color: $caption-color;
+    font-size: $caption-font-size;
+  }
+}
+
+.paragraph--type--embed{
+  .field--name-field-embed-code{
+    @include flex-video($flexvideo-ratio-widescreen);
+    margin-bottom: 4px;
+  }
+
+  .field--name-field-embed-caption{
+    color: $caption-color;
+    font-size: $caption-font-size;
+  }
+}
+
+.paragraph--type--quote{
+
+  margin: 20px 0;
+  &:before{
+    @include fa-icon();
+    @extend .fa-quote-right;
+    position: absolute;
+    font-size: 1.8em;
+  }
+  .field--name-field-quote-text{
+    font-style: italic;
+  }
+  .field--name-field-quote-text,
+  .field--name-field-quote-person{
+    padding-left: 50px;
+  }
+
+  .field--name-field-quote-person{
+    &:before{
+      content: '-';
+      margin-right: 10px;
+    }
+  }
+}

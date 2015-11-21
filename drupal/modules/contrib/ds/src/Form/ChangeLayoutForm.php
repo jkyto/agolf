@@ -53,7 +53,7 @@ class ChangeLayoutForm extends FormBase {
       $form['#new_layout_key'] = $new_layout_key;
 
       $form['info'] = array(
-        '#markup' => t('You are changing from %old to %new layout for !bundle in !view_mode view mode.', array('%old' => $old_layout_info['label'], '%new' => $new_layout['label'], '!bundle' => $bundle, '!view_mode' => $display_mode)),
+        '#markup' => t('You are changing from @old to @new layout for @bundle in @view_mode view mode.', array('@old' => $old_layout_info['label'], '@new' => $new_layout['label'], '@bundle' => $bundle, '@view_mode' => $display_mode)),
         '#prefix' => "<div class='change-ds-layout-info'>",
         '#suffix' => "</div>",
       );
@@ -166,7 +166,7 @@ class ChangeLayoutForm extends FormBase {
     if (!empty($new_layout['library'])) {
       $third_party_settings['layout']['library'] = $new_layout['library'];
     }
-    $third_party_settings['layout']['path'] = drupal_get_path('module', $new_layout['provider']);
+    $third_party_settings['layout']['path'] = $new_layout['path'];
     unset($third_party_settings['regions']);
 
     // map old regions to new ones

@@ -45,8 +45,14 @@ class ExportablesTest extends FastTestBase {
     $this->assertRaw('group-right', 'Right region found');
     $this->assertNoRaw('group-header', 'No header region found');
     $this->assertNoRaw('group-footer', 'No footer region found');
-    $this->assertRaw('<h3><a href="/node/1" hreflang="en">Exportable</a></h3>', t('Default title with h3 found'));
-    $this->assertRaw('<a href="/node/1" hreflang="en">Read more</a>', t('Default read more found'));
+    $link = $this->xpath('//h3/a[text()=:text]', array(
+      ':text' => 'Exportable',
+    ));
+    $this->assertEqual(count($link), 1, 'Default title with h3 found');
+    $link = $this->xpath('//a[text()=:text]', array(
+      ':text' => 'Read more',
+    ));
+    $this->assertEqual(count($link), 1, 'Default read more found');
 
     // Override default layout.
     $layout = array(

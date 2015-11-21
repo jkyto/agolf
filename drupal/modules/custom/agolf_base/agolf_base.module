@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * Implements hook_theme().
+ */
+function agolf_base_theme() {
+    return array(
+        'text_link_formatter' => array(
+            'variables' => array(
+                'item' => NULL,
+                'item_attributes' => NULL,
+                'url' => NULL,
+                'text' => NULL
+            ),
+        ),
+    );
+}

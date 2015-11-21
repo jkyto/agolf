@@ -54,7 +54,7 @@ ds.manage_field:
   requirements:
     _permission: 'admin fields'
 ds.delete_field:
-  path: 'admin/structure/ds/fields/delete/{field}'
+  path: 'admin/structure/ds/fields/delete/{field_key}'
   defaults:
     _form: '\Drupal\ds\Form\FieldDeleteForm'
   requirements:
@@ -78,6 +78,13 @@ ds.manage_block_field:
   defaults:
     _form: '\Drupal\ds\Form\BlockFieldForm'
     _title: 'Edit a block field'
+  requirements:
+    _permission: 'admin fields'
+ds.manage_block_field_config:
+  path: 'admin/structure/ds/fields/manage_block/{field_key}/block_config'
+  defaults:
+    _form: '\Drupal\ds\Form\BlockFieldConfigForm'
+    _title: 'Edit block config'
   requirements:
     _permission: 'admin fields'
 ds.add_block_field:

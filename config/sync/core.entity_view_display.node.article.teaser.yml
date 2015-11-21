@@ -13,24 +13,26 @@ dependencies:
     - field.field.node.article.field_tags
     - node.type.article
   module:
+    - agolf_base
     - ds
-    - image
+    - responsive_image
     - user
 third_party_settings:
   ds:
     layout:
       id: ds_1col
-      path: modules/ds
+      path: modules/contrib/ds
       library: ''
       disable_css: false
       settings:
-        classes: {  }
         wrappers:
-          ds_content: div
+          ds_content: article
         outer_wrapper: div
         attributes: ''
         link_attribute: ''
         link_custom: ''
+        classes:
+          layout_class: {  }
     regions:
       ds_content:
         - field_promo_image
@@ -41,19 +43,18 @@ bundle: article
 mode: teaser
 content:
   field_promo_image:
-    type: image
+    type: responsive_image
     weight: 0
     label: hidden
     settings:
-      image_style: ''
+      responsive_image_style: featured_small
       image_link: content
     third_party_settings: {  }
   field_promo_title:
-    type: string
+    type: text_link_formatter
     weight: 1
     label: hidden
-    settings:
-      link_to_entity: false
+    settings: {  }
     third_party_settings: {  }
 hidden:
   body: true

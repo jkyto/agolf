@@ -5,16 +5,17 @@
  * Field UI functions for Display Suite.
  */
 
-use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Form\FormState;
 use Drupal\Core\Render\Element;
 use Drupal\Core\Url;
 use Drupal\ds\Ds;
 use Drupal\field\FieldConfigInterface;
 use Drupal\field_ui\FieldUI;
+use Drupal\layout_plugin\Layout;
 
 /**
  * Adds the Display Suite fields and layouts to the form.
@@ -236,9 +237,29 @@ function ds_field_ui_row_region($row) {
 }
 
 /**
- * Move the view modes so Field UI can handle them.
+ * Validate the layout settings on the Field UI.
  */
 function ds_field_ui_layouts_validate($form, FormStateInterface $form_state) {
+  // Determine layout variables.
+  $layout = $form_state->getValue('layout');
+  $old_layout = $form_state->getValue('old_layout');
+  $new_layout = ($layout != $old_layout) || empty($old_layout);
+
+  // Only validate the layout settings if the layout hasn't changed.
+  if (!$new_layout && !empty($layout)) {
+    /** @var \Drupal\layout_plugin\Plugin\Layout\LayoutInterface $layout_plugin */
+    $layout_plugin = Layout::layoutPluginManager()->createInstance($form_state->getValue('layout'), []);
+    $layout_form = isset($form['layout_configuration']) ? $form['layout_configuration'] : [];
+    foreach (Element::children($form) as $name) {
+      if (!empty($form[$name]['#ds_layout_configuration'])) {
+        $layout_form[$name] = $form[$name];
+      }
+    }
+    $layout_form_state = (new FormState())->setValues($form_state->getValue('layout_configuration', []));
+    $layout_plugin->validateConfigurationForm($layout_form, $layout_form_state);
+  }
+
+  // Move the view modes so Field UI can handle them.
   if ($form_state->hasValue('modes')) {
     $modes = $form_state->getValue('modes');
     if (isset($modes['display_modes_custom'])) {
@@ -271,13 +292,14 @@ function ds_field_ui_layouts_save($form, FormStateInterface $form_state) {
     return;
   }
 
+
   $ds_layouts = Ds::getLayouts();
 
   // Save layout and add regions if necessary.
   $record = array();
   $record['layout'] = array(
     'id' => $layout,
-    'path' =>  !empty($layout) ? drupal_get_path('module', $ds_layouts[$layout]['provider']) : '',
+    'path' =>  !empty($layout) ? $ds_layouts[$layout]['path'] : '',
     'library' => isset($ds_layouts[$layout]['library']) ? $ds_layouts[$layout]['library'] : FALSE,
     'disable_css' => $disable_css ? TRUE : FALSE,
   );
@@ -351,48 +373,19 @@ function ds_field_ui_layouts_save($form, FormStateInterface $form_state) {
       }
     }
 
-    // Save the region classes.
-    $record['layout']['settings']['classes'] = array();
-    foreach (array_keys($form['fields']['#regions']) as $region) {
-
-      // Ignore hidden region.
-      if ($region == 'hidden') {
-        continue;
-      }
-
-      if ($form_state->hasValue('layout_class')) {
-        $record['layout']['settings']['classes']['layout_class'] = $form_state->getValue('layout_class');
-      }
-
-      // Additional classes on regions.
-      if ($form_state->hasValue($region)) {
-        // Do not save empty classes.
-        $classes = $form_state->getValue($region);
-        foreach ($classes as $class) {
-          if (empty($class)) {
-            unset($classes[$class]);
-          }
-        }
-        if (!empty($classes)) {
-          $record['layout']['settings']['classes'][$region] = $classes;
-        }
-      }
-
-      // Additional wrappers on regions.
-      $region_wrapper = $form_state->getValue(('region_wrapper'));
-      if (isset($region_wrapper[$region])) {
-        $record['layout']['settings']['wrappers'][$region] = $region_wrapper[$region];
+    /** @var \Drupal\layout_plugin\Plugin\Layout\LayoutInterface $layout_plugin */
+    $layout_plugin = Layout::layoutPluginManager()->createInstance($layout, []);
+    $layout_form = isset($form['layout_configuration']) ? $form['layout_configuration'] : [];
+    foreach (Element::children($form) as $name) {
+      if (!empty($form[$name]['#ds_layout_configuration'])) {
+        $layout_form[$name] = $form[$name];
       }
     }
+    $layout_form_state = (new FormState())->setValues($form_state->getValue('layout_configuration', []));
+    $layout_plugin->submitConfigurationForm($layout_form, $layout_form_state);
 
-    // Layout wrapper
-    $region_wrapper = $form_state->getValue(('region_wrapper'));
-    $record['layout']['settings']['outer_wrapper'] = $region_wrapper['outer_wrapper'];
-    $record['layout']['settings']['attributes'] = Xss::filter($region_wrapper['attributes']);
-
-    // Link attribute.
-    $record['layout']['settings']['link_attribute'] = $region_wrapper['link_attribute'];
-    $record['layout']['settings']['link_custom'] = $region_wrapper['link_custom'];
+    // Get the layout settings from the layout_plugin.
+    $record['layout']['settings'] = $layout_plugin->getConfiguration();
 
     // Let other modules alter the layout settings.
     \Drupal::moduleHandler()->alter('ds_layout_settings', $record, $form_state);
@@ -628,12 +621,12 @@ function _ds_field_ui_table_layouts($entity_type, $bundle, $view_mode, &$form, F
   $ds_layouts = Ds::getLayouts();
   $layout_options = array('' => t('- None -'));
   $optgroup = '';
-  foreach ($ds_layouts as $key => $layout) {
-    $optgroup = 'Display Suite';
+  foreach ($ds_layouts as $key => $layout_definition) {
+    $optgroup = t('Other');
 
     // Create new layout option group.
-    if (!empty($layout['module'])) {
-      $optgroup = Unicode::ucfirst($layout['module']);
+    if (!empty($layout_definition['category'])) {
+      $optgroup = (string)$layout_definition['category'];
     }
 
     if (!isset($layout_options[$optgroup])) {
@@ -641,7 +634,7 @@ function _ds_field_ui_table_layouts($entity_type, $bundle, $view_mode, &$form, F
     }
 
     // Stack the layout.
-    $layout_options[$optgroup][$key] = $layout['label'];
+    $layout_options[$optgroup][$key] = $layout_definition['label'];
   }
 
   // If there is only one $optgroup, move it to the root.
@@ -653,7 +646,7 @@ function _ds_field_ui_table_layouts($entity_type, $bundle, $view_mode, &$form, F
   // Add layouts form.
   $form['ds_layouts'] = array(
     '#type' => 'details',
-    '#title' => t('Layout for !bundle in !view_mode', array('!bundle' => str_replace('_', ' ', $bundle), '!view_mode' => str_replace('_', ' ', $view_mode))),
+    '#title' => t('Layout for @bundle in @view_mode', array('@bundle' => str_replace('_', ' ', $bundle), '@view_mode' => str_replace('_', ' ', $view_mode))),
     '#collapsible' => TRUE,
     '#group' => 'additional_settings',
     '#collapsed' => FALSE,
@@ -668,7 +661,7 @@ function _ds_field_ui_table_layouts($entity_type, $bundle, $view_mode, &$form, F
     $layout = $ds_layouts[$layout_configuration['id']];
     $layout['layout'] = $layout_configuration['id'];
     $layout['disable_css'] = $layout_configuration['disable_css'];
-    $layout['settings'] = $layout_configuration['settings'];
+    $layout['settings'] = $layout_configuration['settings'] ?: [];
     $layout['regions'] = $display->getThirdPartySetting('ds', 'regions');
     $layout['fields'] = $display->getThirdPartySetting('ds', 'fields');
   }
@@ -682,150 +675,34 @@ function _ds_field_ui_table_layouts($entity_type, $bundle, $view_mode, &$form, F
   $layout['layout_options'] = $layout_options;
   _ds_field_ui_table_layouts_preview($form, $form_state, $ds_layouts, $layout, $entity_type, $bundle, $view_mode);
 
-  if (!empty($layout) && isset($layout['regions'])) {
+  if (!empty($layout) && !empty($layout['settings']) && $layout['layout'] !== 'ds_reset') {
+    /** @var \Drupal\layout_plugin\Plugin\Layout\LayoutInterface $layout_plugin */
+    $layout_plugin = Layout::layoutPluginManager()->createInstance($layout['layout'], $layout['settings'] ?: []);
 
-    // Add wrappers
-    $wrapper_options = array(
-      'div' => 'Div',
-      'span' => 'Span',
-      'section' => 'Section',
-      'article' => 'Article',
-      'header' => 'Header',
-      'footer' => 'Footer',
-      'aside' => 'Aside',
-      'figure' => 'Figure'
-    );
-    $form['region_wrapper'] = array(
-      '#group' => 'additional_settings',
-      '#type' => 'details',
-      '#title' => t('Custom wrappers'),
-      '#description' => t('Choose a wrapper. All Display Suite layouts support this option.'),
-      '#tree' => TRUE,
-    );
+    $layout_configuration_form = $layout_plugin->buildConfigurationForm([], $form_state);
 
-    // Hide the fieldset in case of the reset layout.
-    if ($layout['layout'] === 'ds_reset') {
-      $form['region_wrapper']['#access'] = FALSE;
-    }
+    // Merge 'details' elements in 'additional_settings' group into the main
+    // form.
+    foreach (Element::children($layout_configuration_form) as $name) {
+      $element = $layout_configuration_form[$name];
+      if ($element['#type'] == 'details' && $element['#group'] == 'additional_settings') {
+        $form[$name] = $layout_configuration_form[$name];
+        unset($layout_configuration_form[$name]);
 
-    foreach (array_keys($layout['region_names']) as $region) {
-      $form['region_wrapper'][$region] = array(
-        '#type' => 'select',
-        '#options' => $wrapper_options,
-        '#title' => t('Wrapper for @region', array('@region' => $layout['region_names'][$region]['label'])),
-        '#default_value' => isset($layout['settings']['wrappers'], $layout['settings']['wrappers'][$region]) ? $layout['settings']['wrappers'][$region] : 'div',
-      );
-    }
-
-    $form['region_wrapper']['outer_wrapper'] = array(
-      '#type' => 'select',
-      '#options' => $wrapper_options,
-      '#title' => t('Outer wrapper'),
-      '#default_value' => isset($layout['settings']['outer_wrapper']) ? $layout['settings']['outer_wrapper'] : 'div',
-      '#weight' => 10,
-    );
-
-    $form['region_wrapper']['attributes'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Layout attributes'),
-      '#description' => 'E.g. role|navigation,data-something|some value',
-      '#default_value' => isset($layout['settings']['attributes']) ? $layout['settings']['attributes'] : '',
-      '#weight' => 11,
-    );
-
-    $form['region_wrapper']['link_attribute'] = array(
-      '#type' => 'select',
-      '#options' => array(
-        '' => t('No link'),
-        'content' => t('Link to content'),
-        'custom' => t('Custom'),
-        'tokens' => t('Tokens')
-      ),
-      '#title' => t('Add link'),
-      '#description' => t('This will add an onclick attribute on the layout wrapper.'),
-      '#default_value' => isset($layout['settings']['link_attribute']) ? $layout['settings']['link_attribute'] : FALSE,
-      '#weight' => 12,
-    );
-
-    $form['region_wrapper']['link_custom'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Custom link'),
-      '#description' => t('You may use tokens for this link if you selected tokens.'),
-      '#default_value' => isset($layout['settings']['link_custom']) ? $layout['settings']['link_custom'] : FALSE,
-      '#weight' => 13,
-      '#states' => array(
-        'visible' => array(array(
-          ':input[name="region_wrapper[link_attribute]"]' => array(array("value" => "tokens"), array("value" => "custom")),
-        )),
-      ),
-    );
-
-    if (\Drupal::moduleHandler()->moduleExists('token')) {
-      $form['region_wrapper']['tokens'] = array(
-        '#title' => t('Tokens'),
-        '#type' => 'container',
-        '#weight' => 14,
-        '#states' => array(
-          'visible' => array(
-            ':input[name="region_wrapper[link_attribute]"]' => array("value" => "tokens"),
-          ),
-        ),
-      );
-      $form['region_wrapper']['tokens']['help'] = array(
-        '#theme' => 'token_tree',
-        '#token_types' => 'all',
-        '#global_types' => FALSE,
-        '#dialog' => TRUE,
-      );
-    }
-
-    // Add extra classes for the regions to have more control while theming.
-    $form['ds_classes'] = array(
-      '#group' => 'additional_settings',
-      '#type' => 'details',
-      '#title' => t('Custom classes'),
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-      '#access' => empty($chosen_layout['flexible']),
-    );
-
-    $classes_access = (\Drupal::currentUser()->hasPermission('admin_classes'));
-    $classes = Ds::getClasses();
-    if (!empty($classes)) {
-
-      $form['ds_classes']['layout_class'] = array(
-        '#type' => 'select',
-        '#multiple' => TRUE,
-        '#options' => $classes,
-        '#title' => t('Class for layout'),
-        '#default_value' => isset($layout['settings']['classes']['layout_class']) ? $layout['settings']['classes']['layout_class'] : '',
-      );
-
-      foreach (array_keys($layout['region_names']) as $region) {
-        $form['ds_classes'][$region] = array(
-          '#type' => 'select',
-          '#multiple' => TRUE,
-          '#options' => $classes,
-          '#title' => t('Class for @region', array('@region' => $region)),
-          '#default_value' => isset($layout['settings']['classes'][$region]) ? $layout['settings']['classes'][$region] : '',
-        );
-      }
-      if ($classes_access) {
-        $url = \Drupal\Core\Url::fromRoute('ds.classes');
-        $destination = \Drupal::destination()->getAsArray();
-        $url->setOption('query', $destination);
-        $form['ds_classes']['info'] = array('#markup' => Drupal::l(t('Manage region and field CSS classes'), $url));
+        $form[$name]['#ds_layout_configuration'] = TRUE;
+        $form[$name]['#parents'] = ['layout_configuration', $name];
+        $form[$name]['#tree'] = TRUE;
       }
     }
-    else {
-      if ($classes_access) {
-        $url = \Drupal\Core\Url::fromRoute('ds.classes');
-        $destination  = \Drupal::destination()->getAsArray();
-        $url->setOption('query', $destination);
-        $form['ds_classes']['info'] = array('#markup' => '<p>' . t('You have not defined any CSS classes which can be used on regions.') . '</p><p>' . Drupal::l(t('Manage region and field CSS classes'), $url) . '</p>');      }
-      else {
-        $form['ds_classes']['#access'] = FALSE;
-      }
+
+    // If anything is left, then we put it on it's own vertial tab.
+    if (!Element::isEmpty($layout_configuration_form)) {
+      $form['layout_configuration'] = array_merge($layout_configuration_form, [
+        '#group' => 'additional_settings',
+        '#type' => 'details',
+        '#title' => t('Layout settings'),
+        '#tree' => TRUE,
+      ]);
     }
   }
   else {
@@ -930,7 +807,7 @@ function _ds_field_ui_table_layouts_preview(&$form, FormStateInterface $form_sta
   if (!empty($layout_string)) {
     $chosen_layout = $ds_layouts[$layout_string];
     $selected = '<strong>' . $chosen_layout['label'] . '</strong>';
-    $selected .= '<br/>' . t('The default template can be found in %path', array('%path' => drupal_get_path('module', $chosen_layout['provider']) . '/templates'));
+    $selected .= '<br/>' . t('The default template can be found in %path', array('%path' => $chosen_layout['template_path']));
     $suggestions_array = array();
     $suggestions_array[0] = $layout_string . '--' . $entity_type;
     $suggestions_array[2] = $layout_string . '--' . $entity_type . '-' . $bundle;
@@ -1115,6 +992,18 @@ function _ds_field_ui_fields($entity_type, $bundle, $view_mode, &$form, FormStat
     $field_regions = $form['#ds_layout']['settings']['regions'];
   }
 
+  $callback_object = $form_state->getBuildInfo()['callback_object'];
+  $display = $callback_object->getEntity();
+  $parent_options = array();
+
+  if (function_exists('field_group_field_ui_form_params')) {
+    $field_group_params = field_group_field_ui_form_params($form, $display);
+    foreach ($field_group_params->groups as $name => $group) {
+      $parent_options[$name] = $group->label;
+    }
+    $parent_options['_add_new_group'] = t('Add new group');
+  }
+
   foreach ($fields as $key => $field) {
     $configuration = array(
       'field' => $field,
@@ -1208,7 +1097,8 @@ function _ds_field_ui_fields($entity_type, $bundle, $view_mode, &$form, FormStat
         'parent' => array(
           '#type' => 'select',
           '#empty_value' => '',
-          '#options' => array(),
+          '#options' => $parent_options,
+          '#default_value' => isset($field_group_params->parents[$key]) ? $field_group_params->parents[$key] : '',
           '#attributes' => array('class' => array('field-parent')),
           '#parents' => array('fields', $key, 'parent'),
         ),

@@ -89,14 +89,7 @@ class Ds {
     static $layouts = FALSE;
 
     if (!$layouts) {
-      $layouts = array();
-      $layoutManager = Layout::layoutPluginManager();
-      $all_layouts = $layoutManager->getDefinitions();
-      foreach ($all_layouts as $key => $info) {
-        if (isset($info['category']) && $info['category'] == 'Display Suite') {
-          $layouts[$key] = $info;
-        }
-      }
+      $layouts = Layout::layoutPluginManager()->getDefinitions();
     }
 
     return $layouts;

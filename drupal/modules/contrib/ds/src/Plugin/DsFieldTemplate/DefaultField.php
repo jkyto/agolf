@@ -13,7 +13,7 @@ namespace Drupal\ds\Plugin\DsFieldTemplate;
  * @DsFieldTemplate(
  *   id = "default",
  *   title = @Translation("Default"),
- *   theme = "theme_field"
+ *   theme = "field"
  * )
  */
 class DefaultField extends DsFieldTemplateBase {

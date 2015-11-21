@@ -32,7 +32,7 @@ trait DsTestTrait {
     );
 
     foreach ($assert['regions'] as $region => $raw) {
-      $this->assertRaw($region, t('Region !region found', array('!region' => $region)));
+      $this->assertRaw($region, t('Region @region found', array('@region' => $region)));
     }
   }
 
@@ -57,8 +57,8 @@ trait DsTestTrait {
   function dsSelectClasses($edit = array(), $url = 'admin/structure/types/manage/article/display') {
 
     $edit += array(
-      "header[]" => 'class_name_1',
-      "footer[]" => 'class_name_2',
+      "layout_configuration[ds_classes][header][]" => 'class_name_1',
+      "layout_configuration[ds_classes][footer][]" => 'class_name_2',
     );
 
     $this->drupalPostForm($url, $edit, t('Save'));
@@ -122,7 +122,7 @@ trait DsTestTrait {
     );
 
     $this->drupalPostForm($url, $edit, t('Save'));
-    $this->assertText(t('The field ' . $edit['name'] . ' has been saved'), t('!name field has been saved', array('!name' => $edit['name'])));
+    $this->assertText(t('The field ' . $edit['name'] . ' has been saved'), t('@name field has been saved', array('@name' => $edit['name'])));
   }
 
   /**
@@ -140,7 +140,7 @@ trait DsTestTrait {
     );
 
     $this->drupalPostForm($url, $edit, t('Save'));
-    $this->assertText(t('The field ' . $edit['name'] . ' has been saved'), t('!name field has been saved', array('!name' => $edit['name'])));
+    $this->assertText(t('The field ' . $edit['name'] . ' has been saved'), t('@name field has been saved', array('@name' => $edit['name'])));
   }
 
   /**

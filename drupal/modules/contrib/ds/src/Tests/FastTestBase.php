@@ -11,6 +11,7 @@ use Drupal\Core\Language\LanguageInterface;
 use Drupal\field\Tests\EntityReference\EntityReferenceTestTrait;
 use Drupal\field_ui\Tests\FieldUiTestTrait;
 use Drupal\simpletest\WebTestBase;
+use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\Tests\TaxonomyTestTrait;
 
@@ -31,7 +32,7 @@ abstract class FastTestBase extends WebTestBase {
    *
    * @var array
    */
-  public static $modules = array('node', 'field_ui', 'taxonomy', 'block', 'ds', 'ds_test', 'layout_plugin');
+  public static $modules = array('node', 'field_ui', 'rdf', 'quickedit', 'taxonomy', 'block', 'ds', 'ds_test', 'ds_switch_view_mode', 'layout_plugin');
 
   /**
    * The label for a random field to be created for testing.
@@ -74,6 +75,8 @@ abstract class FastTestBase extends WebTestBase {
       'admin classes',
       'admin display suite',
       'admin fields',
+      'administer nodes',
+      'view all revisions',
       'administer content types',
       'administer node fields',
       'administer node form display',
@@ -88,7 +91,8 @@ abstract class FastTestBase extends WebTestBase {
       'administer software updates',
       'access site in maintenance mode',
       'administer site configuration',
-      'bypass node access'
+      'bypass node access',
+      'ds switch view mode'
     ));
     $this->drupalLogin($admin_user);
 
@@ -98,8 +102,8 @@ abstract class FastTestBase extends WebTestBase {
     $this->fieldName = 'field_' . $this->fieldNameInput;
 
     // Create Article node type.
-    $this->drupalCreateContentType(array('type' => 'article', 'name' => 'Article'));
-    $this->drupalCreateContentType(array('type' => 'page', 'name' => 'Page'));
+    $this->drupalCreateContentType(array('type' => 'article', 'name' => 'Article', 'revision' => TRUE));
+    $this->drupalCreateContentType(array('type' => 'page', 'name' => 'Page', 'revision' => TRUE));
 
     // Create a vocabulary named "Tags".
     $this->vocabulary = Vocabulary::create(array(
@@ -109,16 +113,41 @@ abstract class FastTestBase extends WebTestBase {
     ));
     $this->vocabulary->save();
 
+    $term1 = Term::create(array(
+      'name' => 'Tag 1',
+      'vid' => 'tags',
+      'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
+    ));
+    $term1->save();
+
+    $term2 = Term::create(array(
+      'name' => 'Tag 2',
+      'vid' => 'tags',
+      'langcode' => LanguageInterface::LANGCODE_NOT_SPECIFIED,
+    ));
+    $term2->save();
+
     $handler_settings = array(
       'target_bundles' => array(
         $this->vocabulary->id() => $this->vocabulary->id(),
       ),
+      // Enable auto-create.
+      'auto_create' => TRUE,
     );
-    $this->createEntityReferenceField('node', 'article', 'field_' . $this->vocabulary->id(), 'Tags', 'taxonomy_term', 'default', $handler_settings);
+    $this->createEntityReferenceField('node', 'article', 'field_' . $this->vocabulary->id(), 'Tags', 'taxonomy_term', 'default', $handler_settings, 10);
 
     entity_get_form_display('node', 'article', 'default')
       ->setComponent('field_' . $this->vocabulary->id())
       ->save();
   }
 
+  /**
+   * Check to see if two trimmed values are equal.
+   */
+  protected function assertTrimEqual($first, $second, $message = '', $group = 'Other') {
+    $first = (string) $first;
+    $second = (string) $second;
+
+    return $this->assertEqual(trim($first), trim($second), $message, $group);
+  }
 }

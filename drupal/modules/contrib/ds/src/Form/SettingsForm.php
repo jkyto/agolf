@@ -129,7 +129,7 @@ class SettingsForm extends ConfigFormBase {
       '#title' => t('Default Field Template'),
       '#options' => $theme_functions,
       '#default_value' => $config->get('ft-default'),
-      '#description' => t('Default will output the field as defined in Drupal Core.<br />Reset will strip all HTML.<br />Minimal adds a simple wrapper around the field.<br/>There is also an Expert Field Template that gives full control over the HTML, but can only be set per field.<br /><br />You can override this setting per field on the "Manage display" screens or when creating fields on the instance level.<br /><br /><strong>Template suggestions</strong><br />You can create .html.twig files as well for these field theme functions, e.g. field--reset.html.twig, field--minimal.html.twig<br /><br /><label>CSS classes</label>You can add custom CSS classes on the <a href="!url">classes form</a>. These classes can be added to fields using the Default Field Template.<br /><br /><label>Advanced</label>You can create your own custom field templates which need to be defined with hook_ds_field_theme_functions_info(). See ds.api.php for an example.', array('!url' => $url->toString())),
+      '#description' => t('Default will output the field as defined in Drupal Core.<br />Reset will strip all HTML.<br />Minimal adds a simple wrapper around the field.<br/>There is also an Expert Field Template that gives full control over the HTML, but can only be set per field.<br /><br />You can override this setting per field on the "Manage display" screens or when creating fields on the instance level.<br /><br /><strong>Template suggestions</strong><br />You can create .html.twig files as well for these field theme functions, e.g. field--reset.html.twig, field--minimal.html.twig<br /><br /><label>CSS classes</label>You can add custom CSS classes on the <a href=":url">classes form</a>. These classes can be added to fields using the Default Field Template.<br /><br /><label>Advanced</label>You can create your own custom field templates which need to be defined with hook_ds_field_theme_functions_info(). See ds.api.php for an example.', array(':url' => $url->toString())),
       '#states' => array(
         'visible' => array(
           'input[name="fs1[field_template]"]' => array('checked' => TRUE),
@@ -170,6 +170,8 @@ class SettingsForm extends ConfigFormBase {
     $this->moduleHandler->resetImplementations();
     $this->themeRegistry->reset();
     $this->routeBuilder->setRebuildNeeded();
+
+    \Drupal::cache('render')->deleteAll();
   }
 
   /**

@@ -9,6 +9,6 @@ features:
   favicon: true
   node_user_picture: true
 logo:
-  path: ''
+  path: themes/custom/agolf/images/agolf-logo.png
   url: ''
-  use_default: true
+  use_default: false

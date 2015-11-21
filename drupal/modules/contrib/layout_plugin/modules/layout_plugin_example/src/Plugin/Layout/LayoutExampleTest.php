@@ -6,6 +6,7 @@
  */
 
 namespace Drupal\layout_plugin_example\Plugin\Layout;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\layout_plugin\Plugin\Layout\LayoutBase;
 
 /**
@@ -15,11 +16,12 @@ use Drupal\layout_plugin\Plugin\Layout\LayoutBase;
  *
  * @Layout(
  *   id = "layout_example_test",
- *   label = @Translation("Test1"),
+ *   label = @Translation("Test layout (with settings)"),
+ *   category = @Translation("Examples"),
  *   description = @Translation("Test1 sample description"),
  *   type = "page",
  *   help = @Translation("Layout"),
- *   theme = "layout_example_test",
+ *   template = "templates/layout-example-test",
  *   regions = {
  *     "top" = {
  *       "label" = @Translation("Top Region"),
@@ -33,4 +35,36 @@ use Drupal\layout_plugin\Plugin\Layout\LayoutBase;
  * )
  */
 class LayoutExampleTest extends LayoutBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function defaultConfiguration() {
+    return parent::defaultConfiguration() + [
+      'setting_1' => 'Default',
+    ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
+    $configuration = $this->getConfiguration();
+    $form['setting_1'] = [
+      '#type' => 'textfield',
+      '#title' => 'Blah',
+      '#default_value' => $configuration['setting_1'],
+    ];
+    return $form;
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state) {
+    parent::submitConfigurationForm($form, $form_state);
+
+    $this->configuration['setting_1'] = $form_state->getValue('setting_1');
+  }
+
 }

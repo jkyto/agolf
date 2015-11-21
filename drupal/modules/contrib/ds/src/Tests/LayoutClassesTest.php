@@ -23,7 +23,7 @@ class LayoutClassesTest extends FastTestBase {
     parent::setup();
 
     // Set extra fields
-    \Drupal::configFactory()->getEditable('ds.extras')
+    \Drupal::configFactory()->getEditable('ds_extras.settings')
       ->set('region_to_block', TRUE)
       ->set('fields_extra', TRUE)
       ->set('fields_extra_list', array('node|article|ds_extras_extra_test_field', 'node|article|ds_extras_second_field'))
@@ -125,9 +125,9 @@ class LayoutClassesTest extends FastTestBase {
     $this->assertNoRaw('<footer class="group-right', 'Footer not found.');
     $this->assertNoRaw('<article', 'Article not found.');
     $wrappers = array(
-      'region_wrapper[header]' => 'header',
-      'region_wrapper[right]' => 'footer',
-      'region_wrapper[outer_wrapper]' => 'article',
+      'layout_configuration[region_wrapper][header]' => 'header',
+      'layout_configuration[region_wrapper][right]' => 'footer',
+      'layout_configuration[region_wrapper][outer_wrapper]' => 'article',
     );
     $this->dsConfigureUI($wrappers);
     $this->drupalGet('node/' . $node->id());

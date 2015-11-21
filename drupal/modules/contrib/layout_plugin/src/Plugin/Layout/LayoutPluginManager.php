@@ -73,9 +73,11 @@ class LayoutPluginManager extends DefaultPluginManager implements LayoutPluginMa
 
     // Add the module or theme path to the 'path'.
     if ($this->moduleHandler->moduleExists($definition['provider'])) {
+      $definition['provider_type'] = 'module';
       $base_path = $this->moduleHandler->getModule($definition['provider'])->getPath();
     }
     elseif ($this->themeHandler->themeExists($definition['provider'])) {
+      $definition['provider_type'] = 'theme';
       $base_path = $this->themeHandler->getTheme($definition['provider'])->getPath();
     }
     else {
@@ -113,6 +115,96 @@ class LayoutPluginManager extends DefaultPluginManager implements LayoutPluginMa
         $definition['region_names'][$region_id] = $region_definition['label'];
       }
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getLayoutOptions(array $params = []) {
+    $group_by_category = !empty($params['group_by_category']);
+    $plugins = $this->getDefinitions();
+
+    // Sort the plugins first by category, then by label.
+    $options = array();
+    foreach ($plugins as $id => $plugin) {
+      if ($group_by_category) {
+        $category = isset($plugin['category']) ? (string) $plugin['category'] : 'default';
+        if (!isset($options[$category])) {
+          $options[$category] = array();
+        }
+        $options[$category][$id] = $plugin['label'];
+      }
+      else {
+        $options[$id] = $plugin['label'];
+      }
+    }
+
+    return $options;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getThemeImplementations() {
+    $plugins = $this->getDefinitions();
+
+    $theme_registry = [];
+    foreach ($plugins as $id => $definition) {
+      if (!empty($definition['template']) && !empty($definition['theme'])) {
+        $theme_registry[$definition['theme']] = [
+          'render element' => 'content',
+          'template' => $definition['template'],
+          'path' => $definition['template_path'],
+        ];
+      }
+    }
+
+    return $theme_registry;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function alterThemeImplementations(array &$theme_registry) {
+    $plugins = $this->getDefinitions();
+
+    foreach ($plugins as $id => $definition) {
+      if (!empty($definition['template']) && !empty($definition['theme']) && isset($theme_registry[$definition['theme']])) {
+        $theme_registry[$definition['theme']]['preprocess functions'][] = '_layout_plugin_preprocess_layout';
+        array_unshift($theme_registry[$definition['theme']]['preprocess functions'], '_layout_plugin_preprocess_layout');
+      }
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getLibraryInfo() {
+    $plugins = $this->getDefinitions();
+
+    $library_info = [];
+    foreach ($plugins as $id => $definition) {
+      if (!empty($definition['css']) && !empty($definition['library'])) {
+        list ($library_module, $library_name) = explode('/', $definition['library']);
+
+        // Make sure the library is from layout_plugin.
+        if ($library_module != 'layout_plugin') {
+          continue;
+        }
+
+        $library_info[$library_name] = [
+          // @todo: Should be the version of the provider module or theme.
+          'version' => 'VERSION',
+          'css' => [
+            'theme' => [
+              '/' . $definition['css'] => [],
+            ],
+          ],
+        ];
+      }
+    }
+
+    return $library_info;
   }
 
 }

@@ -7,7 +7,6 @@
 
 namespace Drupal\ds\Plugin\DsFieldTemplate;
 
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Entity\EntityInterface;
 
 /**
@@ -16,8 +15,7 @@ use Drupal\Core\Entity\EntityInterface;
  * @DsFieldTemplate(
  *   id = "expert",
  *   title = @Translation("Expert"),
- *   theme = "theme_ds_field_expert",
- *   path = "includes/theme.inc"
+ *   theme = "ds_field_expert",
  * )
  */
 class Expert extends DsFieldTemplateBase {
@@ -33,7 +31,7 @@ class Expert extends DsFieldTemplateBase {
       '#type' => 'textfield',
       '#title' => t('Label'),
       '#size' => '10',
-      '#default_value' => Html::escape($config['lb']),
+      '#default_value' => $config['lb'],
     );
 
     // Add prefix
@@ -230,9 +228,9 @@ class Expert extends DsFieldTemplateBase {
         // Enable.
         $field_settings[$wrapper_key] = TRUE;
         // Element.
-        $field_settings[$wrapper_key . '-el'] = !(empty($values[$wrapper_key . '-el'])) ? Html::escape($values[$wrapper_key . '-el']) : 'div';
+        $field_settings[$wrapper_key . '-el'] = !(empty($values[$wrapper_key . '-el'])) ? $values[$wrapper_key . '-el'] : 'div';
         // Classes.
-        $field_settings[$wrapper_key . '-cl'] = !(empty($values[$wrapper_key . '-cl'])) ? Html::escape($values[$wrapper_key . '-cl']) : '';
+        $field_settings[$wrapper_key . '-cl'] = !(empty($values[$wrapper_key . '-cl'])) ? $values[$wrapper_key . '-cl'] : '';
         // Default Classes.
         if (in_array($wrapper_key, array('ow', 'lb'))) {
           $field_settings[$wrapper_key . '-def-cl'] = !(empty($values[$wrapper_key . '-def-cl'])) ? TRUE : FALSE;

@@ -7,8 +7,6 @@
 use Drupal\Component\Utility\Html;
 use Drupal\Component\Utility\Unicode;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
 use Drupal\ds\Ds;
@@ -18,7 +16,7 @@ use Drupal\Core\Entity\Display\EntityDisplayInterface;
  * Implements hook_ds_layout_info_alter().
  */
 function ds_extras_ds_layout_info_alter(&$layouts) {
-  if (\Drupal::config('ds.extras')->get('hidden_region')) {
+  if (\Drupal::config('ds_extras.settings')->get('hidden_region')) {
     foreach ($layouts as $key => $layout) {
       $layouts[$key]['regions']['ds_hidden'] = t('Hidden');
     }
@@ -37,7 +35,7 @@ function ds_extras_module_implements_alter(&$implementations, $hook) {
     'ds_layout_region_alter',
     'entity_view_alter',
   );
-  if (!\Drupal::config('ds.extras')->get('region_to_block') && in_array($hook, $region_hooks)) {
+  if (!\Drupal::config('ds_extras.settings')->get('region_to_block') && in_array($hook, $region_hooks)) {
     unset($implementations['ds_extras']);
   }
 
@@ -45,7 +43,7 @@ function ds_extras_module_implements_alter(&$implementations, $hook) {
   $extra_fields_hooks = array(
     'field_extra_fields',
   );
-  if (!\Drupal::config('ds.extras')->get('fields_extra') && in_array($hook, $extra_fields_hooks)) {
+  if (!\Drupal::config('ds_extras.settings')->get('fields_extra') && in_array($hook, $extra_fields_hooks)) {
     unset($implementations['ds_extras']);
   }
 }
@@ -54,16 +52,269 @@ function ds_extras_module_implements_alter(&$implementations, $hook) {
  * Implements hook_form_FORM_ID_alter().
  */
 function ds_extras_form_entity_view_display_edit_form_alter(&$form, FormStateInterface $form_state) {
-  $form_state->loadInclude('ds_extras', 'inc', 'includes/admin');
-  ds_extras_field_ui_alter($form, $form_state);
+  // Region to block only fires if there is a layout and we're working on the
+  // a view mode which is not equal to default.
+  $mode = $form_state->getFormObject()->getEntity()->getMode();
+  if (isset($form['#ds_layout']) && $mode != 'default' && \Drupal::config('ds_extras.settings')
+      ->get('region_to_block')
+  ) {
+
+    // Get the entity_type, bundle and view mode.
+    $entity_type = $form['#entity_type'];
+    $bundle = $form['#bundle'];
+    $view_mode = $mode;
+
+    $region_blocks_options = array();
+    $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
+
+    if (!empty($region_blocks)) {
+      foreach ($region_blocks as $key => $block) {
+        if ($block['info'] == "{$entity_type}_{$bundle}_{$view_mode}") {
+          $region_blocks_options[$key] = t('Remove') . ' ' . $block['title'];
+        }
+      }
+    }
+
+    $form['region_to_block'] = array(
+      '#type' => 'details',
+      '#group' => 'additional_settings',
+      '#title' => t('Block regions'),
+      '#description' => t('Create additional regions in this layout which will be exposed as blocks.')
+    );
+
+    $form['region_to_block']['new_block_region'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Region name'),
+      '#description' => t('Enter a name to create a new region.'),
+    );
+    $form['region_to_block']['new_block_region_key'] = array(
+      '#title' => t('Machine name'),
+      '#type' => 'machine_name',
+      '#default_value' => '',
+      '#maxlength' => 32,
+      '#required' => FALSE,
+      '#description' => t('The machine-readable name of this block region. This name must contain only lowercase letters and underscores. This name must be unique.'),
+      '#disabled' => FALSE,
+      '#machine_name' => array(
+        'exists' => 'ds_extras_region_to_block_unique',
+        'source' => array('region_to_block', 'new_block_region'),
+      ),
+    );
+
+    if (!empty($region_blocks_options)) {
+      $form['region_to_block']['remove_block_region'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t('Existing block regions'),
+        '#options' => $region_blocks_options,
+        '#description' => t('Check the regions you want to remove.'),
+      );
+    }
+
+    $form['actions']['submit']['#submit'][] = 'ds_extras_block_submit';
+  }
+}
+
+/**
+ * Submit callback after Field UI submission of a views display.
+ */
+function ds_extras_vd_field_ui_submit($form, FormStateInterface $form_state) {
+  // Add the 'type' key to the extra title key so we can ditch the notice.
+  $form_state->setValue('fields', array('title' => array('type' => 'hidden')));
+}
+
+/**
+ * Submit callback: manage block regions.
+ */
+function ds_extras_block_submit($form, FormStateInterface $form_state) {
+
+  // Create new region.
+  if ($new_block_region = $form_state->getValue('new_block_region')) {
+
+    // Get the entity_type, bundle and view mode.
+    $entity_type = $form['#entity_type'];
+    $bundle = $form['#bundle'];
+    $view_mode = $form_state->getFormObject()->getEntity()->getMode();
+
+    $block = array(
+      'title' => $new_block_region,
+      'info' => "{$entity_type}_{$bundle}_{$view_mode}",
+    );
+
+    $block_key = $form_state->getValue('new_block_region_key');
+    $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
+    if (empty($region_blocks)) {
+      $region_blocks = array();
+    }
+    $region_blocks[$block_key] = $block;
+    \Drupal::configFactory()->getEditable('ds_extras.settings')->set('region_blocks', $region_blocks)->save();
+  }
+
+  // Remove a region.
+  if ($form_state->hasValue('remove_block_region')) {
+    $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
+    $region_removal_status = $form_state->getValue('remove_block_region');
+
+    foreach ($region_removal_status as $key => $value) {
+      if ($value !== 0 && $key == $value) {
+        unset($region_blocks[$key]);
+
+        // Make sure there is no active block instance for this ds block region.
+        if (\Drupal::moduleHandler()->moduleExists('block')) {
+          $ids = \Drupal::entityQuery('block')
+            ->condition('plugin', 'ds_region_block:' . $key)
+            ->execute();
+          $block_storage = \Drupal::entityManager()->getStorage('block');
+          foreach ($block_storage->loadMultiple($ids) as $block) {
+            $block->delete();
+          }
+        }
+      }
+    }
+
+    // Clear cached block and ds plugin defintions
+    \Drupal::service('plugin.manager.block')->clearCachedDefinitions();
+    \Drupal::service('plugin.manager.ds')->clearCachedDefinitions();
+
+    // Remove the region from ds settings
+    \Drupal::configFactory()->getEditable('ds_extras.settings')->set('region_blocks', $region_blocks)->save();
+  }
+}
+
+/**
+ * Return unique region to block.
+ */
+function ds_extras_region_to_block_unique($name) {
+  $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
+  if (empty($region_blocks)) {
+    $region_blocks = array();
+  }
+  $value = strtr($name, array('-' => '_'));
+  return isset($region_blocks[$value]) ? TRUE : FALSE;
 }
 
 /**
  * Implements hook_form_FORM_ID_alter().
  */
 function ds_extras_form_ds_admin_form_alter(&$form, FormStateInterface $form_state) {
-  $form_state->loadInclude('ds_extras', 'inc', 'includes/admin');
-  ds_extras_settings_alter($form, $form_state);
+  $config = \Drupal::configFactory()->getEditable('ds_extras.settings');
+
+  $form['fs2'] = array(
+    '#type' => 'details',
+    '#title' => t('Extra fields'),
+    '#group' => 'additional_settings',
+    '#tree' => TRUE,
+  );
+
+  $form['fs2']['fields_extra'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable extra fields'),
+    '#description' => t('Make fields from other modules available on the "Manage display" screens.'),
+    '#default_value' => $config->get('fields_extra'),
+  );
+
+  $form['fs2']['fields_extra_list'] = array(
+    '#type' => 'textarea',
+    '#description' => t('Enter fields line by line, where each line is a combination of entity type, bundle and field name. E.g. node|article|tweetbutton. It might be possible that the actual content of the field depends on configuration of that field/module.'),
+    '#default_value' => implode("\n", $config->get('fields_extra_list')),
+    '#states' => array(
+      'visible' => array(
+        'input[name="fs2[fields_extra]"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form['fs3'] = array(
+    '#type' => 'details',
+    '#title' => t('Other'),
+    '#group' => 'additional_settings',
+    '#tree' => TRUE,
+  );
+
+  $form['fs3']['field_permissions'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Field permissions'),
+    '#description' => t('Enables view permissions on all Display Suite fields.'),
+    '#default_value' => $config->get('field_permissions'),
+  );
+
+  if (\Drupal::moduleHandler()->moduleExists('block')) {
+    $form['fs3']['region_to_block'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Region to block'),
+      '#description' => t('Create additional regions exposed as block. Note: this will not work on the default view mode.'),
+      '#default_value' => $config->get('region_to_block'),
+    );
+  }
+
+  $form['fs3']['switch_field'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('View mode switcher'),
+    '#description' => t('Adds a field with links to switch view modes inline with Ajax. Only works for nodes at this time. It does not work in combination with the reset layout.'),
+    '#default_value' => $config->get('switch_field'),
+  );
+
+  $form['fs3']['hidden_region'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Hidden region'),
+    '#description' => t('Add a hidden region to the layouts. Fields will be built but not printed.'),
+    '#default_value' => $config->get('hidden_region'),
+  );
+
+  $form['fs3']['override_node_revision'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Custom node revision view mode'),
+    '#description' => t('Override the node revision page view with a custom view mode'),
+    '#default_value' => $config->get('override_node_revision'),
+  );
+
+  $options = array();
+  $view_modes = \Drupal::entityManager()->getViewModes('node');
+  foreach ($view_modes as $key => $view_mode) {
+    $options[$key] = $view_mode['label'];
+  }
+
+  $form['fs3']['override_node_revision_view_mode'] = array(
+    '#type' => 'select',
+    '#description' => t('The revision view mode'),
+    '#default_value' => $config->get('override_node_revision_view_mode'),
+    '#options' => $options,
+    '#states' => array(
+      'visible' => array(
+        'input[name="fs3[override_node_revision]"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form['#submit'][] = 'ds_extras_settings_submit';
+  $form['#attached']['library'][] = 'ds_extras/admin';
+}
+
+/**
+ * Submit callback: Extras settings screen.
+ */
+function ds_extras_settings_submit($form, FormStateInterface $form_state) {
+  $values = $form_state->getValues();
+
+  $extra_fields = array();
+  if (!empty($values['fs2']['fields_extra_list'])) {
+    $extra_fields = explode("\n", str_replace("\r", '', $values['fs2']['fields_extra_list']));
+  }
+
+  $config = \Drupal::configFactory()->getEditable('ds_extras.settings')
+    ->set('fields_extra', $values['fs2']['fields_extra'])
+    ->set('fields_extra_list', $extra_fields)
+    ->set('field_permissions', $values['fs3']['field_permissions'])
+    ->set('switch_field', $values['fs3']['switch_field'])
+    ->set('hidden_region', $values['fs3']['hidden_region'])
+    ->set('override_node_revision', $values['fs3']['override_node_revision'])
+    ->set('override_node_revision_view_mode', $values['fs3']['override_node_revision_view_mode']);
+  if (\Drupal::moduleHandler()->moduleExists('block')) {
+    $config->set('region_to_block', $values['fs3']['region_to_block']);
+  }
+  $config->save();
+
+  // Mark the router items for rebuild
+  \Drupal::service('router.builder')->setRebuildNeeded();
 }
 
 /**
@@ -93,7 +344,7 @@ function ds_extras_entity_view_alter(&$build, EntityInterface $entity, EntityDis
   $view_mode = $display->getMode();
 
   $block_data = &drupal_static('ds_block_region');
-  $region_blocks = \Drupal::config('ds.extras')->get('region_blocks');
+  $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
 
   if (empty($region_blocks) || empty($build)) {
     return;
@@ -123,133 +374,11 @@ function ds_extras_entity_view_alter(&$build, EntityInterface $entity, EntityDis
 }
 
 /**
- * Implements hook_entity_view_mode_alter().
- */
-function ds_extras_entity_view_mode_alter(&$view_mode, Drupal\Core\Entity\EntityInterface $entity, $context) {
-  if (\Drupal::config('ds.extras')->get('switch_view_mode') && $entity->getEntityTypeId() == 'node' && node_is_page($entity) && !empty($entity->ds_switch->value)) {
-    $view_mode = $entity->ds_switch->value;
-  }
-}
-
-/**
- * Implements hook_form_BASE_FORM_ID_alter() for node_form.
- *
- * Adds the switch view mode form element.
- */
-function ds_extras_form_node_form_alter(&$form, FormStateInterface $form_state) {
-  // Switch full view mode.
-  $node = $form_state->getFormObject()->getEntity();
-
-  if (\Drupal::config('ds.extras')->get('switch_view_mode') && \Drupal::currentUser()->hasPermission('ds_switch ' . $node->bundle())) {
-    // Get the view modes.
-    $ds_vm = \Drupal::entityManager()->getViewModes('node');
-    $layouts = array();
-    $options = array('' => t('Default'));
-    foreach ($ds_vm as $key => $item) {
-      $overridden = FALSE;
-      $entity_display = entity_load('entity_view_display', 'node.' . $node->bundle() . '.' . $key);
-      if ($entity_display) {
-        $overridden = $entity_display->status();
-      }
-      if ($overridden) {
-        // @todo entity bundle info does not store layout info anymore
-        $layout = Ds::getDisplay('node', $node->bundle(), $key, FALSE);
-        $layouts[$key] = $layout;
-        $options[$key] = $item['label'];
-      }
-    }
-
-    // Add default layout settings
-    $layouts[''] = Ds::getDisplay('node', $node->bundle(), 'default', FALSE);
-
-    // Only fire if we have more than 1 option.
-    if (count($options) > 1) {
-
-      if (!isset($form['ds_extras'])) {
-        $form['ds_extras'] = array(
-          '#type' => 'details',
-          '#title' => t('Display settings'),
-          '#weight' => 100,
-          '#group' => 'advanced',
-        );
-      }
-
-      $form['ds_extras']['ds_switch'] = array(
-        '#type' => 'select',
-        '#title' => t('View mode'),
-        '#options' => $options,
-        '#default_value' => $node->ds_switch->value,
-        '#description' => t('Switch to a different view mode to display the full page view of this node.'),
-        '#weight' => -1,
-        '#ajax' => array(
-          'callback' => 'ds_extras_switch_view_mode_preview_callback',
-          'wrapper' => 'ds_switch_preview_wrapper',
-        ),
-      );
-
-      $form['ds_extras']['preview'] = array(
-        '#type' => 'container',
-        '#prefix' => '<div id="ds_switch_preview_wrapper">',
-        '#suffix' => '</div>',
-      );
-
-      $mode = $form_state->getValue('ds_switch');
-      if (!$mode) {
-        $mode = $node->get('ds_switch')->value;
-      }
-      $chosen_layout = $layouts[$mode];
-      $layout_settings = $chosen_layout->getThirdPartySettings('ds');
-
-      $ds_layouts = Ds::getLayouts();
-      $fallback_image = drupal_get_path('module', 'ds') . '/images/preview.png';
-
-      if (isset($layout_settings['layout'])) {
-        $chosen_layout = $ds_layouts[$layout_settings['layout']['id']];
-        $image = (isset($chosen_layout['icon']) && !empty($chosen_layout['icon'])) ? $chosen_layout['icon'] : $fallback_image;
-      }
-      else {
-        $image = $fallback_image;
-      }
-      $form['ds_extras']['preview']['image'] = array(
-        '#markup' => '<div class="ds-layout-preview-image"><img src="' . base_path() . $image . '"/></div>',
-      );
-    }
-  }
-}
-
-/**
- * Ajax callback for _ds_field_ui_table_layouts_preview().
- */
-function ds_extras_switch_view_mode_preview_callback($form, $form_state) {
-  return $form['ds_extras']['preview'];
-}
-
-/**
- * Implements hook_entity_base_field_info().
- */
-function ds_extras_entity_base_field_info(EntityTypeInterface $entity_type) {
-  // Add the switch field as a base field.
-  $fields = array();
-
-  if (\Drupal::config('ds.extras')->get('switch_view_mode') && $entity_type->id() == 'node') {
-    $fields['ds_switch'] = BaseFieldDefinition::create('string')
-      ->setLabel(t('DS switch'))
-      ->setName('ds_switch')
-      ->setRevisionable(TRUE)
-      ->setDescription(t('Holds the DS view mode of the node.'))
-      ->setSetting('default_value', '')
-      ->setPropertyConstraints('value', array('Length' => array('max' => 60)));
-  }
-
-  return $fields;
-}
-
-/**
  * Implements hook_ds_layout_region_alter().
  */
 function ds_extras_ds_layout_region_alter($context, &$region_info) {
 
-  $region_blocks = \Drupal::config('ds.extras')->get('region_blocks');
+  $region_blocks = \Drupal::config('ds_extras.settings')->get('region_blocks');
 
   // Bail out if region_blocks is empty or we are working on default view mode.
   if (empty($region_blocks) || $context['view_mode'] == 'default') {
@@ -279,8 +408,8 @@ function ds_extras_ds_layout_region_alter($context, &$region_info) {
 function ds_extras_entity_extra_field_info() {
   $extra = array();
 
-  if (\Drupal::config('ds.extras')->get('fields_extra')) {
-    $fields = \Drupal::config('ds.extras')->get('fields_extra_list');
+  if (\Drupal::config('ds_extras.settings')->get('fields_extra')) {
+    $fields = \Drupal::config('ds_extras.settings')->get('fields_extra_list');
     if (empty($fields)) {
       return $extra;
     }

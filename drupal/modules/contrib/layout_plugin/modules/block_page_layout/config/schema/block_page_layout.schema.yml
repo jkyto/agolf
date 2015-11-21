@@ -22,3 +22,6 @@ display_variant.plugin.block_page_layout:
     layout:
       type: string
       label: Layout
+    layout_settings:
+      type: layout_plugin.settings.[%parent.layout]
+      label: Layout settings

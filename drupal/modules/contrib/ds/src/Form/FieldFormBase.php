@@ -94,7 +94,6 @@ class FieldFormBase extends ConfigFormBase implements ContainerInjectionInterfac
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state, $field_key = '') {
-
     // Initialize field.
     $field = array();
 
@@ -182,26 +181,25 @@ class FieldFormBase extends ConfigFormBase implements ContainerInjectionInterfac
     // Save field to property
     $this->field = $field;
 
-    // Save field and clear ds_fields_info cache.
+    // Save field values
     $this->config('ds.field.' . $field['id'])->setData($field)->save();
-    $this->cacheInvalidator->invalidateTags(array('ds_fields_info'));
 
-    // Also clear the ds plugin cache
-    \Drupal::service('plugin.manager.ds')->clearCachedDefinitions();
-
-    // Redirect.
-    $url = new Url('ds.fields_list');
-    $form_state->setRedirectUrl($url);
-    drupal_set_message(t('The field %field has been saved.', array('%field' => $field['label'])));
+    // Clear caches and redirect
+    $this->finishSubmitForm($form, $form_state);
   }
 
   /**
    * {@inheritdoc}
    */
   protected function getEditableConfigNames() {
-    return array(
-      'ds.field.' . $this->field['id'],
-    );
+    if (isset($this->field, $this->field['id'])) {
+      return array(
+        'ds.field.' . $this->field['id'],
+      );
+    }
+    else {
+      return array();
+    }
   }
 
   /**
@@ -236,6 +234,24 @@ class FieldFormBase extends ConfigFormBase implements ContainerInjectionInterfac
       return TRUE;
     }
     return FALSE;
+  }
+
+  /**
+   * Finishes the submit
+   */
+  public function finishSubmitForm(array &$form, FormStateInterface $form_state) {
+    $field = $this->field;
+
+    // Save field and clear ds_fields_info cache.
+    $this->cacheInvalidator->invalidateTags(array('ds_fields_info'));
+
+    // Also clear the ds plugin cache
+    \Drupal::service('plugin.manager.ds')->clearCachedDefinitions();
+
+    // Redirect.
+    $url = new Url('ds.fields_list');
+    $form_state->setRedirectUrl($url);
+    drupal_set_message(t('The field %field has been saved.', array('%field' => $field['label'])));
   }
 
 }

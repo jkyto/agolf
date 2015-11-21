@@ -78,22 +78,20 @@ class EmergencyForm extends ConfigFormBase {
     );
 
     $form['ds_fields_error']['disable'] = array(
-      '#type' => 'checkbox',
-      '#title' => $this->t('Disable attaching fields via Display Suite'),
-      '#description' => $this->t('In case you get an error after configuring a layout printing a message like "Fatal error: Unsupported operand types", you can temporarily disable adding fields from DS by toggling this checkbox. You probably are trying to render an node inside a node, for instance through a view, which is simply not possible. See <a href="http://drupal.org/node/1264386">http://drupal.org/node/1264386</a>.'),
-      '#default_value' => $this->state->get('ds.disabled', FALSE),
-      '#weight' => 0,
+      '#type' => 'html_tag',
+      '#tag' => 'p',
+      '#value' => $this->t('In case you get an error after configuring a layout printing a message like "Fatal error: Unsupported operand types", you can temporarily disable adding fields from DS. You probably are trying to render an node inside a node, for instance through a view, which is simply not possible. See <a href="http://drupal.org/node/1264386">http://drupal.org/node/1264386</a>.'),
     );
 
     $form['ds_fields_error']['submit'] = array(
       '#type' => 'submit',
-      '#value' => t('Disable/enable field attach'),
+      '#value' => ($this->state->get('ds.disabled', FALSE) ? t('Enable attaching fields') : t('Disable attaching fields')),
       '#submit' => array('::submitFieldAttach'),
       '#weight' => 1,
     );
 
     if ($this->moduleHandler->moduleExists('ds_extras')) {
-      $region_blocks = $this->config('ds.extras')->get('region_blocks');
+      $region_blocks = $this->config('ds_extras.settings')->get('region_blocks');
       if (!empty($region_blocks)) {
 
         $region_blocks_options = array();
@@ -135,7 +133,7 @@ class EmergencyForm extends ConfigFormBase {
    * Submit callback for the fields error form.
    */
   public function submitFieldAttach(array &$form, FormStateInterface $form_state) {
-    $this->state->set('ds.disabled', $form_state->getValue('disable'));
+    $this->state->set('ds.disabled', ($this->state->get('ds.disabled', FALSE) ? FALSE : TRUE));
     drupal_set_message(t('The configuration options have been saved.'));
   }
 
@@ -145,7 +143,7 @@ class EmergencyForm extends ConfigFormBase {
   public function submitRegionToBlock(array &$form, FormStateInterface $form_state) {
     if ($form_state->getValue('remove_block_region')) {
       $save = FALSE;
-      $region_blocks = $this->config('ds.extras')->get('region_blocks');
+      $region_blocks = $this->config('ds_extras.settings')->get('region_blocks');
       $remove = $form_state->getValue('remove_block_region');
       foreach ($remove as $key => $value) {
         if ($value !== 0 && $key == $value) {
@@ -173,7 +171,7 @@ class EmergencyForm extends ConfigFormBase {
         \Drupal::service('plugin.manager.block')->clearCachedDefinitions();
         \Drupal::service('plugin.manager.ds')->clearCachedDefinitions();
 
-        $this->config('ds.extras')->set('region_blocks', $region_blocks)->save();
+        $this->config('ds_extras.settings')->set('region_blocks', $region_blocks)->save();
       }
     }
     else {
@@ -186,7 +184,7 @@ class EmergencyForm extends ConfigFormBase {
    */
   protected function getEditableConfigNames() {
     return array(
-      'ds.extras'
+      'ds_extras.settings'
     );
   }
 

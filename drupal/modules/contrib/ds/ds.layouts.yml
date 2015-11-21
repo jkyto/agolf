@@ -1,6 +1,7 @@
 ds_1col:
   label: One column layout
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-1col
   icon: images/ds-1col.png
@@ -10,6 +11,7 @@ ds_1col:
 ds_1col_wrapper:
   label: One column layout + wrapper
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-1col-wrapper
   icon: images/ds-1col-wrapper.png
@@ -19,6 +21,7 @@ ds_1col_wrapper:
 ds_2col:
   label: Two column layout
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-2col
   css: css/ds-2col.css
@@ -31,6 +34,7 @@ ds_2col:
 ds_2col_fluid:
   label: Fluid two column layout
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-2col-fluid
   css: css/ds-2col-fluid.css
@@ -43,6 +47,7 @@ ds_2col_fluid:
 ds_2col_stacked:
   label: Two column stacked layout
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-2col-stacked
   css: css/ds-2col-stacked.css
@@ -59,6 +64,7 @@ ds_2col_stacked:
 ds_2col_stacked_fluid:
   label: Fluid two column stacked layout
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-2col-stacked-fluid
   css: css/ds-2col-stacked-fluid.css
@@ -75,6 +81,7 @@ ds_2col_stacked_fluid:
 ds_3col:
   label: Three column - 25/50/25
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-3col
   css: css/ds-3col.css
@@ -89,6 +96,7 @@ ds_3col:
 ds_3col_equal_width:
   label: Three column - equal width
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-3col-equal-width
   css: templates/ds-3col-equal-width.css
@@ -103,6 +111,7 @@ ds_3col_equal_width:
 ds_3col_stacked:
   label: Three column stacked - 25/50/25
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-3col-stacked
   css: css/ds-3col-stacked.css
@@ -121,6 +130,7 @@ ds_3col_stacked:
 ds_3col_stacked_fluid:
   label: Fluid three column stacked - 25/50/25
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-3col-stacked-fluid
   css: css/ds-3col-stacked-fluid.css
@@ -139,6 +149,7 @@ ds_3col_stacked_fluid:
 ds_3col_stacked_equal_width:
   label: Three column stacked - equal width
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-3col-stacked-equal-width
   css: css/ds-3col-stacked-equal-width.css
@@ -157,6 +168,7 @@ ds_3col_stacked_equal_width:
 ds_4col:
   label: Four column - equal width
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-4col
   css: css/ds-4col.css
@@ -173,6 +185,7 @@ ds_4col:
 ds_reset:
   label: Reset layout
   category: Display Suite
+  class: '\Drupal\ds\Plugin\DsLayout'
   type: partial
   template: templates/ds-reset
   image: images/ds-reset.png

@@ -9,7 +9,7 @@ dependencies:
 id: agolf_content
 theme: agolf
 region: content
-weight: 0
+weight: -1
 provider: null
 plugin: system_main_block
 settings:

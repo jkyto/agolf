@@ -120,6 +120,51 @@ class DynamicFieldPluginTest extends FastTestBase {
     $this->drupalGet('admin/structure/types/manage/article/display');
     $this->assertNoRaw('fields[dynamic_block_field:node-test_block_field][weight]', t('Test block field not found on node article.'));
 
-    $this->dsSelectLayout();
+    // Create a configurable block field
+    $edit = array(
+      'name' => 'Configurable block',
+      'id' => 'test_block_configurable',
+      'entities[node]' => '1',
+      'block' => 'system_menu_block:tools',
+    );
+
+    $this->dsCreateBlockField($edit);
+
+    // Try to set the depth to 3, to ensure we can save the block
+    $edit = array(
+      'depth' => '3',
+    );
+    $this->drupalPostForm('admin/structure/ds/fields/manage_block/test_block_configurable/block_config', $edit, t('Save'));
+
+    // Assert it's found on the Field UI for article.
+    $this->drupalGet('admin/structure/types/manage/article/display');
+    $this->assertRaw('fields[dynamic_block_field:node-test_block_configurable][weight]', t('Test configurable block field found on node article.'));
+
+    // Assert it's not found on the Field UI for users.
+    $this->drupalGet('admin/config/people/accounts/display');
+    $this->assertNoRaw('fields[dynamic_block_field:node-test_block_configurable][weight]', t('Test configurable block field not found on user.'));
+
+    // Add block to display
+    $fields = array(
+      'fields[dynamic_block_field:node-test_block_configurable][region]' => 'left',
+    );
+    $this->dsConfigureUI($fields, 'admin/structure/types/manage/article/display');
+
+    /** @var \Drupal\node\NodeInterface $node */
+    $node = $this->entitiesTestSetup();
+
+    // Look at node and verify the menu is visible
+    $this->drupalGet('node/' . $node->id());
+    $this->assertRaw('Add content', t('Tools menu found.'));
+
+    // Try to set the depth to 3, to ensure we can save the block
+    $edit = array(
+      'level' => '2',
+    );
+    $this->drupalPostForm('admin/structure/ds/fields/manage_block/test_block_configurable/block_config', $edit, t('Save'));
+
+    // Look at node and verify the menu is not visible
+    $this->drupalGet('node/' . $node->id());
+    $this->assertNoRaw('Add content', t('Tools menu not found.'));
   }
 }
