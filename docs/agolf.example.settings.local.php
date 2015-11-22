@@ -89,13 +89,12 @@ $settings['extension_discovery_scan_tests'] = TRUE;
  * be gained by generating a query string from rebuild_token_calculator.sh and
  * using these parameters in a request to rebuild.php.
  */
-$settings['rebuild_access'] = TRUE;
-
+$settings['rebuild_access'] = FALSE;
 
 $databases['default']['default'] = array (
   'database' => 'agolf',
-  'username' => 'root',
-  'password' => 'root',
+  'username' => '<dbuser>',
+  'password' => '<dbpassword>',
   'prefix' => '',
   'host' => 'localhost',
   'port' => '3306',
@@ -104,3 +103,8 @@ $databases['default']['default'] = array (
 );
 
 $settings['install_profile'] = 'standard';
+
+$config_directories = array(
+    CONFIG_SYNC_DIRECTORY => '../config/sync',
+);
+$settings['hash_salt'] = '<put-your-hash-salt-here>';
