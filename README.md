@@ -1,6 +1,4 @@
-# agolf
-
-<h1>AGolf Drupal</h1>
+# AGolf Drupal
 <p>Drupal installation of agolf.fi</p>
 <h2>Styles</h2>
 <p>
